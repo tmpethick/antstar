@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="levels\MAbispebjergHospital.lvl" />
+    <None Include="levels\MAchallenge.lvl" />
+    <None Include="levels\MAmultiagentSort.lvl" />
+    <None Include="levels\MApacman.lvl" />
+    <None Include="levels\MAsimple1.lvl" />
+    <None Include="levels\MAsimple2.lvl" />
+    <None Include="levels\MAsimple3.lvl" />
+    <None Include="levels\MAsimple4.lvl" />
+    <None Include="levels\MAsimple5.lvl" />
+    <None Include="levels\MAthomasAppartment.lvl" />
+    <None Include="levels\SAanagram.lvl" />
+    <None Include="levels\SAbispebjergHospital.lvl" />
+    <None Include="levels\SAchoice.lvl" />
+    <None Include="levels\SApushing.lvl" />
+    <None Include="levels\SAsimple1.lvl" />
+    <None Include="levels\SAsimple2.lvl" />
+    <None Include="levels\SAsoko1_12.lvl" />
+    <None Include="levels\SAsokobanLevel96.lvl" />
+    <None Include="levels\SAtest.lvl" />
+    <None Include="levels\SAtowersOfSaigon5.lvl" />
+    <Compile Include="Domain.fs" />
+    <Compile Include="Grid.fs" />
+    <Compile Include="Program.fs" />
+    <None Include="Playground.fsx" />
+  </ItemGroup>
+
+</Project>
