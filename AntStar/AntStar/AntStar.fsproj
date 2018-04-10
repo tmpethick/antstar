@@ -30,6 +30,10 @@
     <Compile Include="Grid.fs" />
     <Compile Include="Program.fs" />
     <None Include="Playground.fsx" />
+    <None Include="Search.fs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FSharpx.Collections" Version="1.17.0" />
+  </ItemGroup>
 </Project>
