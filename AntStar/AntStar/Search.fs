@@ -1,3 +1,5 @@
+module Search
+
 open FSharpx.Collections
 
 type Cost = int

@@ -29,11 +29,15 @@
     <Compile Include="Domain.fs" />
     <Compile Include="Grid.fs" />
     <Compile Include="Program.fs" />
+    <Compile Include="Search.fs" />
     <None Include="Playground.fsx" />
-    <None Include="Search.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FSharpx.Collections" Version="1.17.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.3.4" />
   </ItemGroup>
 </Project>
