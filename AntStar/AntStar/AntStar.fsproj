@@ -1,10 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
   </PropertyGroup>
-
   <ItemGroup>
     <None Include="levels\MAbispebjergHospital.lvl" />
     <None Include="levels\MAchallenge.lvl" />
@@ -28,15 +26,13 @@
     <None Include="levels\SAtowersOfSaigon5.lvl" />
     <Compile Include="Domain.fs" />
     <Compile Include="Grid.fs" />
-    <Compile Include="Program.fs" />
     <Compile Include="Search.fs" />
     <None Include="Playground.fsx" />
+    <Compile Include="Program.fs" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="FSharpx.Collections" Version="1.17.0" />
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Update="FSharp.Core" Version="4.3.4" />
   </ItemGroup>

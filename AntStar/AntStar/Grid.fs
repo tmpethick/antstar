@@ -139,6 +139,7 @@ let allValidActions (a: AgentIdx) (grid: Grid) =
   |> Array.Parallel.map (fun (a,c) -> match c with Success s -> Some(a,s) | Error _ -> None)
   |> Array.filter Option.isSome
   |> Array.Parallel.map Option.get
+  |> Array.toList
 
   
 // Parse map
