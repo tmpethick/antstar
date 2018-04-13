@@ -23,6 +23,7 @@ type Errors =
   // Grid errors
   | BoxPositionIsNotBox
   | InvalidGridPosition
+  | OutOfBounds
   
 type Context<'a> =
   | Success of 'a

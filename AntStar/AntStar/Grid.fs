@@ -1,7 +1,8 @@
 ﻿module Grid
-open Domain
 open System.IO
 open System.Text.RegularExpressions
+open System
+open Domain
 
 type Grid     = { 
     staticGrid  : StaticGrid; 
@@ -20,7 +21,7 @@ type Grid     = {
                     match Map.find (i,j) g.dynamicGrid with
                     | Agent (t, _) -> t.ToString()
                     | Wall         -> "+"
-                    | Box (t, _)   -> t.ToString()
+                    | Box (t, _)   -> t.ToString().ToUpper()
                     | DEmpty       -> " "
                     ) 
               |> toLine) 
@@ -82,7 +83,7 @@ let posFromDir (d: Dir) ((x,y): Pos) =
     | W -> (-1,0)
   (x+x',y+y')
 
-let apply (action: Action) (grid: Grid) : Context<Grid> =
+let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
   match action with
   | NOP       -> Success grid
   | Move(a,d) -> 
@@ -102,13 +103,13 @@ let apply (action: Action) (grid: Grid) : Context<Grid> =
       let newBPos = posFromDir bd newAPos
       grid.GetAgent a
       |?> fun (_,c') -> 
-        match grid.dynamicGrid.[newAPos], grid.dynamicGrid.[newBPos] with
-        | Box(_,c),DEmpty when c=c' ->
-          grid.MoveBox newAPos newBPos
-          |?> fun grid' -> Success (grid'.MoveAgent a newAPos)
-        | Box(_,_),DEmpty -> Error ColorMismatch
-        | Box(_,_),_ -> Error PositionOccupied
-        | _,_ -> Error NotAssociatedObject
+        match grid.dynamicGrid.TryFind newAPos, grid.dynamicGrid.TryFind newBPos with
+        | Some (Box(_,c)),Some DEmpty when c=c' -> 
+            grid.MoveBox newAPos newBPos
+           |?> fun grid' -> Success (grid'.MoveAgent a newAPos)
+        | Some (Box(_,_)),Some DEmpty           -> Error ColorMismatch
+        | Some (Box(_,_)),_                     -> Error PositionOccupied
+        | _,_                                   -> Error NotAssociatedObject
   | Pull(a,ad,bd) ->
     match Map.tryFind a grid.agentPos with
     | None   -> Error AgentNotOnMap
@@ -117,31 +118,34 @@ let apply (action: Action) (grid: Grid) : Context<Grid> =
       let curBPos = posFromDir (flipDir bd) curAPos
       grid.GetAgent a
       |?> fun (_,c') -> 
-        match grid.dynamicGrid.[newAPos], grid.dynamicGrid.[curBPos] with
-        | DEmpty, Box(_,c) when c=c' ->
+        match grid.dynamicGrid.TryFind newAPos, grid.dynamicGrid.TryFind curBPos with
+        | None, _ |  _, None                     -> Error OutOfBounds 
+        | Some DEmpty, Some (Box(_,c)) when c=c' ->
           grid.MoveAgent a newAPos
           |> fun grid' -> (grid'.MoveBox curBPos curAPos)
-        | DEmpty, Box(_,_) -> Error ColorMismatch
-        | _,Box(_,_) -> Error PositionOccupied
-        | _,_ -> Error NotAssociatedObject
+        | Some DEmpty, Some (Box(_,_))           -> Error ColorMismatch
+        | _, Some (Box(_,_))                     -> Error PositionOccupied
+        | _,_                                    -> Error NotAssociatedObject
 
-let allValidActions (a: AgentIdx) (grid: Grid) =
+// TODO: parallelise
+let allValidActions (agent: AgentIdx) (grid: Grid) =
   let pushPull = 
-    [N;E;S;W] 
-    |> List.pairwise
-    |> List.collect (fun (d1,d2) -> [Push(a,d1,d2);Pull(a,d1,d2)])
+    cartesian [N;E;S;W] [N;E;S;W] 
+    |> List.collect (fun (d1,d2) -> [Push(agent,d1,d2);Pull(agent,d1,d2)])
   
-  [|N;E;S;W|]
-  |> Array.fold (fun cur d -> Move(a,d) :: cur) pushPull
+  [N;E;S;W]
+  |> List.fold (fun cur d -> Move(agent,d) :: cur) pushPull
   |> fun x -> NOP :: x
   |> List.toArray
-  |> Array.Parallel.map (fun a -> a,apply a grid)
-  |> Array.Parallel.map (fun (a,c) -> match c with Success s -> Some(a,s) | Error _ -> None)
+  |> Array.map (fun a -> a,apply a grid)
+  |> Array.map (fun (a,c) -> 
+        match c with 
+        | Success s -> Some(a,s) 
+        | Error _   -> None)
   |> Array.filter Option.isSome
-  |> Array.Parallel.map Option.get
+  |> Array.map Option.get
   |> Array.toList
 
-  
 // Parse map
 let readLines filename =
   filename
@@ -192,14 +196,14 @@ let parseMap colorMap (lines: list<int * string>) : Grid =
               grid.SetAgent (i,j) (c, getColor c colorMap)
 
             | (i, c) when matchRegex @"[A-Z]" c -> 
-              let box = Box (c, getColor c colorMap)
+              let box = Box (Char.ToLower c, getColor c colorMap)
               { grid with dynamicGrid = grid.dynamicGrid |> Map.add (i,j) box }
             
             | (i, '+')                          -> 
               { grid with dynamicGrid = grid.dynamicGrid |> Map.add (i,j) Wall }
 
             | (i, c) when matchRegex @"[a-z]" c -> 
-              { grid with staticGrid = grid.staticGrid |> Map.add (i,j) (Goal c) }
+              { grid with staticGrid = grid.staticGrid |> Map.add (i,j) (Goal (Char.ToLower c)) }
 
             | (_, ' ')                          -> grid
             | _                                 -> failwith "not a valid map character"

@@ -48,8 +48,6 @@ let root (p: Problem<'s,'a>): Node<'s,'a> =
           depth  = 0;
           value  = p.ValueP s}
 
-
-
 type SearchQueue<'s,'a when 's: comparison> = 
     {q: IPriorityQueue<Node<'s,'a>>; m: Map<'s,Node<'s,'a>> }
     static member empty = {q = PriorityQueue.empty false; m = Map.empty; }
@@ -72,7 +70,7 @@ type SokobanProblem (filename, goalTest) =
  
     override p.Actions s = Grid.allValidActions agent s
     override p.GoalTest s = goalTest s
-    override p.ChildNode n a s = { n with state = s; value = n.value + 1; action = a }
+    override p.ChildNode n a s = { n with state = s; value = n.value + 1; action = a; parent = Some n; }
     override p.initialAction () = NOP
 
 let allGoalsMet (grid: Grid) = 
@@ -97,12 +95,14 @@ let graphSearch (p: SokobanProblem) =
     let f = (SearchQueue<Grid,Action>.empty).Insert initialEl
     let e: Set<Grid> = Set.empty
     let rec loop (f: SearchQueue<Grid,Action>) = 
+        let frontierStates = Map.map (fun s n -> n.state) f.m
+        // printfn "%O" frontierStates
         if f.IsEmpty
         then None
         else 
             let n, f' = f.Pop
             if p.GoalTest n.state
-            then Some (retrieveSolution n) // solution
+            then Some (retrieveSolution n)
             else 
                 let e' = e.Add n.state
                 let f'' = p.Actions n.state |> List.fold (fun (f'':SearchQueue<Grid,Action>) (a,s) ->

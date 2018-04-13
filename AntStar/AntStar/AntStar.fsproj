@@ -4,6 +4,12 @@
     <TargetFramework>netcoreapp2.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.3.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="NUnitTest.fs" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="levels\MAbispebjergHospital.lvl" />
     <None Include="levels\MAchallenge.lvl" />
     <None Include="levels\MAmultiagentSort.lvl" />
@@ -24,16 +30,14 @@
     <None Include="levels\SAsokobanLevel96.lvl" />
     <None Include="levels\SAtest.lvl" />
     <None Include="levels\SAtowersOfSaigon5.lvl" />
+    <None Include="levels\SAminimal.lvl" />
     <Compile Include="Domain.fs" />
     <Compile Include="Grid.fs" />
     <Compile Include="Search.fs" />
     <None Include="Playground.fsx" />
     <Compile Include="Program.fs" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="FSharpx.Collections" Version="1.17.0" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="4.3.4" />
+    <PackageReference Include="Unit" Version="1.0.0" />
+    <PackageReference Include="NUnit" Version="3.10.1" />
   </ItemGroup>
 </Project>
