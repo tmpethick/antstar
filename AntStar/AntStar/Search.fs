@@ -59,19 +59,21 @@ type SearchQueue<'s,'a when 's: comparison> =
     member pq.Contains state = pq.m.ContainsKey state
     member pq.TryFind state = pq.m.TryFind state
 
-type SokobanProblem (filename, goalTest) = 
+type SokobanProblem (grid, agent, goalTest) = 
     inherit Problem<Grid,Action>()
 
-    let lines = Path.Combine(__SOURCE_DIRECTORY__, filename) |> readLines
-    let colors, gridLines = parseColors Map.empty (lines)
-    let grid = parseMap colors (gridLines |> addIdx)
-    let agent: AgentIdx = '0'
     override p.Initial = grid
- 
     override p.Actions s = Grid.allValidActions agent s
     override p.GoalTest s = goalTest s
     override p.ChildNode n a s = { n with state = s; value = n.value + 1; action = a; parent = Some n; }
     override p.initialAction () = NOP
+
+    new(filename, goalTest) = 
+        let lines = Path.Combine(__SOURCE_DIRECTORY__, filename) |> readLines
+        let colors, gridLines = parseColors Map.empty (lines)
+        let grid = parseMap colors (gridLines |> addIdx)
+        let agent: AgentIdx = '0'
+        SokobanProblem (grid, agent, goalTest)
 
 let allGoalsMet (grid: Grid) = 
     grid.staticGrid

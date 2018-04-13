@@ -10,6 +10,9 @@ type Agent      = AgentIdx * Color
 type StaticObject  = Goal of Goal | SEmpty
 type DynamicObject = Agent of Agent | Box of Box | Wall | DEmpty
 
+let defaultColor = Blue
+let defaultAgent: Agent = ('0', defaultColor)
+
 type Pos = int * int
 type StaticGrid  = Map<Pos, StaticObject>
 type DynamicGrid = Map<Pos, DynamicObject>
@@ -24,6 +27,9 @@ type Errors =
   | BoxPositionIsNotBox
   | InvalidGridPosition
   | OutOfBounds
+  // Search errors
+  | NoGoalToBoxPathFound
+  | NoBoxToAgentPathFound
   
 type Context<'a> =
   | Success of 'a

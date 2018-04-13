@@ -26,7 +26,7 @@ type Grid     = {
                     ) 
               |> toLine) 
           |> flatten
-        member g.SetAgent corr agent = 
+        member g.AddAgent corr agent = 
           { g with 
               dynamicGrid = g.dynamicGrid |> Map.add corr (Agent agent)
               agentPos    = g.agentPos    |> Map.add (fst agent) corr }
@@ -58,6 +58,36 @@ type Grid     = {
             | Some (Agent(t,c)) -> Success (t,c)
             | Some (_)
             | None -> Error AgentNotOnMap
+        member g.GetGoals () = 
+            g.staticGrid
+            |> Map.toList
+            |> List.map (fun (pos, obj) ->
+                match obj with
+                | Goal gt -> Some (pos, gt)
+                | SEmpty -> None)
+            |> List.filter Option.isSome
+            |> List.map Option.get
+        member inline g.RemoveAgents () = 
+            let removeAgent pos = function | Agent _ -> DEmpty | a -> a
+            {g with
+                agentPos = Map.empty; 
+                dynamicGrid = g.dynamicGrid |> Map.map removeAgent}
+        member inline g.FilterAgents (predicate: Agent -> bool) =
+            { g with dynamicGrid = g.dynamicGrid 
+                                   |> Map.filter (fun _ -> function 
+                                       | Agent a -> predicate a 
+                                       |_ -> true); 
+                     agentPos = g.agentPos 
+                                |> (Map.filter (fun _ pos -> 
+                                    match g.dynamicGrid.TryFind pos with
+                                    | Some (Agent agent) -> predicate agent
+                                    | _ -> true)) }
+        member inline g.FilterDynamicObjects mapper = {g with dynamicGrid = g.dynamicGrid |> Map.filter mapper }
+
+        static member inline filterDynamicObjects mapper (g: Grid) = g.FilterDynamicObjects mapper
+        static member inline filterAgents predicate (g: Grid) = g.FilterAgents predicate
+        static member inline addAgent pos agent (g:Grid) = g.AddAgent pos agent
+        static member inline removeAgents (g: Grid) = g.RemoveAgents ()
 
 
 let emptyGrid w h = 
@@ -193,7 +223,7 @@ let parseMap colorMap (lines: list<int * string>) : Grid =
         (snd l |> Seq.toList |> addIdx)
         |> List.fold (fun grid -> function
             | (i, c) when matchRegex @"[0-9]" c -> 
-              grid.SetAgent (i,j) (c, getColor c colorMap)
+              grid.AddAgent (i,j) (c, getColor c colorMap)
 
             | (i, c) when matchRegex @"[A-Z]" c -> 
               let box = Box (Char.ToLower c, getColor c colorMap)
