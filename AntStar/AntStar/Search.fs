@@ -6,28 +6,6 @@ open FSharpx.Collections
 open Grid 
 open Domain 
 
-type Cost = int
-
-[<CustomComparison; CustomEquality>]
-type Node<'s,'a> = {
-    state  : 's;
-    parent : Node<'s,'a> option;
-    action : 'a;
-    cost   : Cost;
-    depth  : int;
-    value  : int;}
-    with
-    interface System.IComparable with
-      member x.CompareTo y = 
-        match y with
-        | :? Node<'s,'a> as y' -> x.value - y'.value
-        | _             -> invalidArg "y" "Not a QueueElement"
-    override x.Equals(yobj) =  
-       match yobj with 
-       | :? Node<'s,'a> as y -> x.value = y.value
-       | _ -> false
-    override x.GetHashCode() = x.value // TODO: 
-
 [<AbstractClass>]
 type Problem<'s, 'a> () =
    abstract Initial : 's
@@ -59,21 +37,20 @@ type SearchQueue<'s,'a when 's: comparison> =
     member pq.Contains state = pq.m.ContainsKey state
     member pq.TryFind state = pq.m.TryFind state
 
-type SokobanProblem (grid, agent, goalTest) = 
+type SokobanProblem (grid, goalPos, goal) = 
     inherit Problem<Grid,Action>()
 
-    override p.Initial = grid
-    override p.Actions s = Grid.allValidActions agent s
-    override p.GoalTest s = goalTest s
-    override p.ChildNode n a s = { n with state = s; value = n.value + 1; action = a; parent = Some n; }
+    override p.Initial = {grid with desires = (FindBox(goalPos,goal) :: grid.desires); searchPoint = Some goalPos}
+    override p.Actions s = Grid.allValidActions s
+    override p.GoalTest s = s.desires.Head = IsGoal
+    override p.ChildNode n a s = Grid.getChild n a s
     override p.initialAction () = NOP
 
-    new(filename, goalTest) = 
+    new(filename, goalPos, goal) = 
         let lines = Path.Combine(__SOURCE_DIRECTORY__, filename) |> readLines
         let colors, gridLines = parseColors Map.empty (lines)
         let grid = parseMap colors (gridLines |> addIdx)
-        let agent: AgentIdx = '0'
-        SokobanProblem (grid, agent, goalTest)
+        SokobanProblem (grid, goalPos, goal)
 
 let allGoalsMet (grid: Grid) = 
     grid.staticGrid
