@@ -47,7 +47,7 @@ type SokobanProblem (grid, goalPos, goal) =
     override p.initialAction () = NOP
 
     new(filename, goalPos, goal) = 
-        let lines = Path.Combine(__SOURCE_DIRECTORY__, filename) |> readLines
+        let lines = filename |> readLines
         let colors, gridLines = parseColors Map.empty (lines)
         let grid = parseMap colors (gridLines |> addIdx)
         SokobanProblem (grid, goalPos, goal)

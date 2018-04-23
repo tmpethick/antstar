@@ -23,8 +23,8 @@ let rec testActions state = function
 //    let actions = [Move ('0', E); Move ('0', E); Push ('0', E, E)]
 //    testActions problem.Initial actions
 
-let testSimpleSearch () = 
-    let problem = SokobanProblem ("./levels/SAsimple1.lvl",(11,1),'a')
+let testSimpleSearch (level: string) () = 
+    let problem = SokobanProblem (level,(11,1),'a')
     match graphSearch problem with
     | None -> failwith "SASsimple1 solution not found"
     | Some x -> 
@@ -101,10 +101,30 @@ let isBox = function | Box _ -> false | _ -> true
 //    let goals = state.GetGoals ()
 //    List.collect (solveSubGoal state) goals |> ignore
 
+type CommandLineOptions = {
+    level: string;
+    }
+
+let rec parseCommandLineInput args options = 
+    match args with
+    | [] -> 
+        options  
+    | "-lvl"::h::t -> 
+        let updatedOptions = { options with level= (Path.GetFullPath h) }
+        parseCommandLineInput t updatedOptions
+    | h::t -> 
+        eprintfn "Option '%s' is unrecognized" h
+        parseCommandLineInput t options 
+
 [<EntryPoint>]
-let main argv =
+let main args =
     //testMinimal ()
-    testSimpleSearch ()
+    let mutable options = {
+        level = Path.Combine(__SOURCE_DIRECTORY__, "./levels/SAsimple1.lvl")
+        }
+    options <- parseCommandLineInput (Array.toList args) options
+
+    testSimpleSearch options.level ()
 
     //let problem = SokobanProblem ("./levels/SAsimple1.lvl", Search.allGoalsMet)
     //printfn "%O" problem.Initial
@@ -117,6 +137,6 @@ let main argv =
 
     // testSolveSubGoals ()
 
-    printfn "Press any key to exit"
-    Console.ReadKey() |> ignore
+    // printfn "Press any key to exit"
+    // Console.ReadKey() |> ignore
     0 // return an integer exit code
