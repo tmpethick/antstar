@@ -46,11 +46,7 @@ type SokobanProblem (grid, goalPos, goal) =
     override p.ChildNode n a s = Grid.getChild n a s
     override p.initialAction () = NOP
 
-    new(filename, goalPos, goal) = 
-        let lines = filename |> readLines
-        let colors, gridLines = parseColors Map.empty (lines)
-        let grid = parseMap colors (gridLines |> addIdx)
-        SokobanProblem (grid, goalPos, goal)
+    new(grid, goalPos, goal) = SokobanProblem (grid, goalPos, goal)
 
 let allGoalsMet (grid: Grid) = 
     grid.staticGrid

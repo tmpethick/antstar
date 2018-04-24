@@ -22,15 +22,35 @@ let rec testActions state = function
 //    let problem = SokobanProblem ("./levels/SAminimal.lvl", Search.allGoalsMet)
 //    let actions = [Move ('0', E); Move ('0', E); Push ('0', E, E)]
 //    testActions problem.Initial actions
+let getGrid filename =
+  let lines = Path.Combine(__SOURCE_DIRECTORY__, filename) |> readLines
+  let colors, gridLines = parseColors Map.empty (lines)
+  parseMap colors (gridLines |> addIdx)
+
+let getGoals grid =
+  grid.staticGrid
+  |> Map.map (fun _ v ->
+    match v with
+    | Goal c -> Some c
+    | SEmpty -> None)
+  |> Map.filter (fun _ x -> Option.isSome x)
+  |> Map.map (fun _ x -> Option.get x)
+  |> Map.toArray
+
 
 let testSimpleSearch (level: string) () = 
-    let problem = SokobanProblem (level,(11,1),'a')
-    match graphSearch problem with
-    | None -> failwith "SASsimple1 solution not found"
-    | Some x -> 
-      x
-      |> List.map (fun n -> n.action)
-      |> fun y -> printfn "%A" y
+    let grid = getGrid level
+
+    getGoals grid
+    |> Array.map (fun (p,c) ->
+      let problem = SokobanProblem (grid,p,c)
+      match graphSearch problem with
+      | None -> failwith "SASsimple1 solution not found"
+      | Some x -> 
+        x
+        |> List.map (fun n -> n.action)
+        |> fun y -> printfn "%A" y
+    )
 
 let findAdjecent (predicate: DynamicObject -> bool) (pos: Pos) (grid: Grid) : (Pos * DynamicObject) option = 
     [N;S;E;W]
@@ -124,7 +144,7 @@ let main args =
         }
     options <- parseCommandLineInput (Array.toList args) options
 
-    testSimpleSearch options.level ()
+    testSimpleSearch options.level () |> ignore
 
     //let problem = SokobanProblem ("./levels/SAsimple1.lvl", Search.allGoalsMet)
     //printfn "%O" problem.Initial
@@ -138,5 +158,5 @@ let main args =
     // testSolveSubGoals ()
 
     // printfn "Press any key to exit"
-    // Console.ReadKey() |> ignore
+    Console.ReadKey() |> ignore
     0 // return an integer exit code
