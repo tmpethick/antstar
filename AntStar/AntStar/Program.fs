@@ -63,7 +63,7 @@ let findAdjecent (predicate: DynamicObject -> bool) (pos: Pos) (grid: Grid) : (P
 
 let getAgentPos (g: Grid) = (Seq.head g.agentPos).Value
 
-let isBoxOfType    t = function | Box (t', _)   -> t' = t | _ -> false
+let isBoxOfType    t = function | Box (_,t', _)   -> t' = t | _ -> false
 let isAgentOfColor c = function | Agent (_, c') -> c' = c | _ -> false
 
 let isBox = function | Box _ -> false | _ -> true
@@ -140,7 +140,7 @@ let rec parseCommandLineInput args options =
 let main args =
     //testMinimal ()
     let mutable options = {
-        level = Path.Combine(__SOURCE_DIRECTORY__, "./levels/SAsimple1.lvl")
+        level = Path.Combine(__SOURCE_DIRECTORY__, "./levels/testlevels/SAtest2.lvl")
         }
     options <- parseCommandLineInput (Array.toList args) options
 

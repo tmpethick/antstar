@@ -1,9 +1,9 @@
 ﻿module Domain
-
+open System
 // Blue is default
 type Color      =  Blue | Red | Green | Cyan | Magenta | Orange | Pink | Yellow
 type ObjType    = char
-type Box        = ObjType * Color
+type Box        = Guid * ObjType * Color
 type Goal       = ObjType
 type AgentIdx   = char
 type Agent      = AgentIdx * Color
@@ -39,8 +39,8 @@ type Context<'a> =
 type Desire =
   | FindBox of Pos * Goal
   | FindAgent of Pos * ObjType * Color
-  | MoveAgent of Pos * (Pos list)
-  | MoveBox of Pos * ObjType * Color * (Pos list)
+  | MoveAgent of Pos * AgentIdx * (Pos list)
+  | MoveBox of Pos * Guid * (Pos list)
   | IsGoal
 
 let getDesireCost = function
@@ -48,6 +48,7 @@ let getDesireCost = function
   | FindAgent(_) -> 2
   | MoveAgent(_) -> 1
   | MoveBox(_) -> 20
+  | IsGoal -> 0
 
 type Dir = N | E | S | W
 type Action = 

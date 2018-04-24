@@ -55,7 +55,7 @@ let allGoalsMet (grid: Grid) =
         | SEmpty -> true
         | Goal gt -> 
             match grid.dynamicGrid.TryFind gpos with
-            | Some (Box (bt, _)) -> gt = bt
+            | Some (Box (_,bt, _)) -> gt = bt
             | _ -> false)
 
 

@@ -11,6 +11,7 @@ type Grid     = {
     staticGrid  : StaticGrid 
     dynamicGrid : DynamicGrid
     agentPos    : Map<AgentIdx, Pos>
+    boxPos      : Map<Guid, Pos>
     desires     : List<Desire>
     searchPoint : Pos option
     width  : int
@@ -26,7 +27,7 @@ type Grid     = {
                     match Map.find (i,j) g.dynamicGrid with
                     | Agent (t, _) -> t.ToString()
                     | Wall         -> "+"
-                    | Box (t, _)   -> t.ToString().ToUpper()
+                    | Box (id,t, _)   -> t.ToString().ToUpper()
                     | DEmpty       -> " "
                     ) 
               |> toLine) 
@@ -45,12 +46,12 @@ type Grid     = {
           { g with dynamicGrid = dynGrid; agentPos = agentPos }
         member g.MoveBox pFrom pTo =
           match Map.tryFind pFrom g.dynamicGrid with
-          | Some (Box(t,c)) ->
+          | Some (Box(id,t,c)) ->
             let grid' =
               g.dynamicGrid
-              |> Map.add pTo (Box(t,c))
+              |> Map.add pTo (Box(id,t,c))
               |> Map.add pFrom DEmpty
-            Success {g with dynamicGrid = grid'}
+            Success {g with dynamicGrid = grid'; boxPos = Map.add id pTo g.boxPos}
           | Some (_) -> Error BoxPositionIsNotBox
           | None -> Error InvalidGridPosition
         
@@ -100,6 +101,7 @@ let emptyGrid w h =
     {staticGrid  = new StaticGrid  (Seq.map (fun c -> c, SEmpty) coords);
      dynamicGrid = new DynamicGrid (Seq.map (fun c -> c, DEmpty) coords);
      agentPos    = Map.empty;
+     boxPos      = Map.empty;
      desires = [];
      searchPoint = None;
      width       = w;
@@ -149,11 +151,11 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
       grid.GetAgent a
       |?> fun (_,c') -> 
         match grid.dynamicGrid.TryFind newAPos, grid.dynamicGrid.TryFind newBPos with
-        | Some (Box(_,c)),Some DEmpty when c=c' -> 
+        | Some (Box(_,_,c)),Some DEmpty when c=c' -> 
             grid.MoveBox newAPos newBPos
            |?> fun grid' -> Success (grid'.MoveAgent a newAPos)
-        | Some (Box(_,_)),Some DEmpty           -> Error ColorMismatch
-        | Some (Box(_,_)),_                     -> Error PositionOccupied
+        | Some (Box(_,_,_)),Some DEmpty           -> Error ColorMismatch
+        | Some (Box(_,_,_)),_                     -> Error PositionOccupied
         | _,_                                   -> Error NotAssociatedObject
   | Pull(a,ad,bd) ->
     match Map.tryFind a grid.agentPos with
@@ -165,17 +167,70 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
       |?> fun (_,c') -> 
         match grid.dynamicGrid.TryFind newAPos, grid.dynamicGrid.TryFind curBPos with
         | None, _ |  _, None                     -> Error OutOfBounds 
-        | Some DEmpty, Some (Box(_,c)) when c=c' ->
+        | Some DEmpty, Some (Box(_,_,c)) when c=c' ->
           grid.MoveAgent a newAPos
           |> fun grid' -> (grid'.MoveBox curBPos curAPos)
-        | Some DEmpty, Some (Box(_,_))           -> Error ColorMismatch
-        | _, Some (Box(_,_))                     -> Error PositionOccupied
+        | Some DEmpty, Some (Box(_,_,_))           -> Error ColorMismatch
+        | _, Some (Box(_,_,_))                     -> Error PositionOccupied
         | _,_                                    -> Error NotAssociatedObject
 
 // TODO: parallelise
 let allValidActions (grid: Grid) =
-  [N;E;S;W]
-  |> List.fold (fun cur d -> MovePointer(d) :: cur) []
+  let movePointer = 
+    [N;E;S;W]
+    |> List.fold (fun cur d -> MovePointer(d) :: cur) []
+  
+  let desireActions =
+    match grid.desires.Head with
+    | IsGoal 
+    | FindAgent _ 
+    | FindBox _ -> []
+    | MoveAgent(_,aId,_) -> 
+      [N;E;S;W] 
+      |> List.map (fun d -> Move(aId,d))
+    | MoveBox(bPos,id,_) ->
+      let validAgents = 
+        grid.agentPos
+        |> Map.toArray
+        |> Array.map (fun (aid,p) -> grid.GetAgent aid, p)
+        |> Array.map (fun (context,p) -> 
+          match context with
+          | Success(aid,color) -> aid,color,p
+          | Error _ -> failwith "uncaught custom error")
+      
+      let boxPos =
+        match Map.tryFind id grid.boxPos with
+        | Some bp -> bp
+        | None -> failwith "unknown box"
+      
+      let agentsNextToBox =
+        validAgents
+        |> Array.map (fun (aid,ac,apos) ->
+          let isNextToBox =
+            [N;E;S;W]
+            |> List.map (fun d -> d,posFromDir d apos)
+            |> List.exists (fun (_,p) -> p = boxPos)
+          aid,isNextToBox)
+        |> Array.filter (fun (_,isNextToBox) -> isNextToBox)
+        |> Array.map fst
+      
+      let moveAgent =
+        validAgents
+        |> Array.toList
+        |> List.fold (fun cur (aid,_,_) ->
+          [N;E;S;W]
+          |> List.fold (fun cur' d -> Move(aid,d) :: cur') cur
+        ) []
+      
+      agentsNextToBox
+      |> Array.toList
+      |> List.fold (fun cur aid ->
+        cartesian [N;E;S;W] [N;E;S;W]
+        |> List.fold (fun cur' (d1,d2) -> Push(aid,d1,d2) :: Pull(aid,d1,d2) :: cur') cur
+      ) moveAgent
+       
+  desireActions
+  |> List.fold (fun cur a -> a :: cur) movePointer
   |> List.toArray
   |> Array.map (fun a -> a,apply a grid)
   |> Array.map (fun (a,c) -> 
@@ -236,8 +291,9 @@ let parseMap colorMap (lines: list<int * string>) : Grid =
               grid.AddAgent (i,j) (c, getColor c colorMap)
 
             | (i, c) when matchRegex @"[A-Z]" c -> 
-              let box = Box (Char.ToLower c, getColor c colorMap)
-              { grid with dynamicGrid = grid.dynamicGrid |> Map.add (i,j) box }
+              let id = Guid.NewGuid()
+              let box = Box (id,Char.ToLower c, getColor c colorMap)
+              { grid with dynamicGrid = grid.dynamicGrid |> Map.add (i,j) box; boxPos = Map.add id (i,j) grid.boxPos }
             
             | (i, '+')                          -> 
               { grid with dynamicGrid = grid.dynamicGrid |> Map.add (i,j) Wall }
@@ -288,8 +344,8 @@ let tryGetObstructionState curDesire n s =
     let forbiddenPositions = getPositions curDesire [] n
     let desire = 
       match obj with
-      | Agent(_) -> MoveAgent(objP, forbiddenPositions)
-      | Box(objType',c') -> MoveBox(objP, objType', c', forbiddenPositions)
+      | Agent((idx,_)) -> MoveAgent(objP, idx, forbiddenPositions)
+      | Box(id,objType',c') -> MoveBox(objP, id, forbiddenPositions)
       | _ -> failwith "Unknown obstruction"
     Some 
       {s with 
@@ -299,7 +355,7 @@ let tryGetObstructionState curDesire n s =
 
 let applyFindBoxDesire (n: Node<Grid,Action>) (s: Grid) (p: Pos) (goal: Goal) = 
   match s.dynamicGrid.TryFind p with
-  | Some (Box(objType,c)) when objType = goal ->
+  | Some (Box(_,objType,c)) when objType = goal ->
     match tryGetObstructionState s.desires.Head n s with
     | Some obsState -> obsState
     | None -> {s with desires = FindAgent(p, objType, c) :: s.desires}
@@ -313,14 +369,33 @@ let applyFindAgentDesire (n: Node<Grid,Action>) (s: Grid) (p: Pos) (boxType: Obj
     | None -> {s with desires = IsGoal :: s.desires}
   | _ -> s
 
+let applyMoveAgentDesire (n: Node<Grid,Action>) (s: Grid) (aid: AgentIdx) (forbidden: Pos list) = 
+  match s.agentPos.TryFind aid with
+  | Some p -> 
+    match forbidden |> List.contains p with
+    | true -> s
+    | false -> {s with desires = s.desires.Tail}
+  | None -> failwith "Unknown agent"
+
+let applyMoveBoxDesire (n: Node<Grid,Action>) (s: Grid) (bId: Guid) (forbidden: Pos list) = 
+  let boxPos =
+    match Map.tryFind bId s.boxPos with
+    | Some bp -> bp
+    | None -> failwith "unknown box"
+
+  match forbidden |> List.contains boxPos with
+  | true -> s
+  | false -> {s with desires = s.desires.Tail}
+
+
 let getChild (n: Node<Grid,Action>) (appliedAction: Action) (newState: Grid) : Node<Grid,Action> = 
   let resultState =
     match newState.searchPoint, newState.desires.Head with
     | None, _ -> newState
     | Some p, FindBox(goalPos,goal) -> applyFindBoxDesire n newState p goal
     | Some p, FindAgent(boxPos,boxType,c) -> applyFindAgentDesire n newState p boxType c
-    | Some p, MoveAgent(aPos, forbidden) -> newState
-    | Some p, MoveBox(boxPos, boxType, c, forbidden) -> newState
+    | Some p, MoveAgent(aPos,aid,forbidden) -> applyMoveAgentDesire n newState aid forbidden
+    | Some p, MoveBox(boxPos, bId, forbidden) -> applyMoveBoxDesire n newState bId forbidden
     | Some p, IsGoal -> newState
 
   { n with state = resultState; value = n.value + 1; action = appliedAction; parent = Some n; }
