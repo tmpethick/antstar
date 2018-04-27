@@ -10,6 +10,8 @@ type Agent      = AgentIdx * Color
 type StaticObject  = Goal of Goal | SEmpty
 type DynamicObject = Agent of Agent | Box of Box | Wall | DEmpty
 
+let getId ((id,_,_): Box) = id
+
 let defaultColor = Blue
 let defaultAgent: Agent = ('0', defaultColor)
 

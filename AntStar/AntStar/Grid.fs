@@ -21,17 +21,25 @@ type Grid     = {
           |> List.map (fun j -> 
               [0..g.width-1]
               |> List.map (fun i -> 
-                  match Map.find (i,j) g.staticGrid with
-                  | Goal t           -> t.ToString().ToLower()
-                  | SEmpty           -> 
-                    match Map.find (i,j) g.dynamicGrid with
-                    | Agent (t, _) -> t.ToString()
-                    | Wall         -> "+"
-                    | Box (id,t, _)   -> t.ToString().ToUpper()
-                    | DEmpty       -> " "
-                    ) 
+                  if Option.exists ((=) (i,j)) g.searchPoint
+                  then "O"
+                  else
+                    match Map.find (i,j) g.staticGrid with
+                    | Goal t           -> t.ToString().ToLower()
+                    | SEmpty           -> 
+                      match Map.find (i,j) g.dynamicGrid with
+                      | Agent (t, _) -> t.ToString()
+                      | Wall         -> "+"
+                      | Box (id,t, _)   -> t.ToString().ToUpper()
+                      | DEmpty       -> " "
+                      ) 
               |> toLine) 
           |> flatten
+        
+        member g.AddWall corr = 
+          { g with dynamicGrid = g.dynamicGrid |> Map.add corr Wall }
+        member g.AddBox corr (box: Box) = 
+          { g with dynamicGrid = g.dynamicGrid |> Map.add corr (Box box); boxPos = Map.add (getId box) corr g.boxPos }
         member g.AddAgent corr agent = 
           { g with 
               dynamicGrid = g.dynamicGrid |> Map.add corr (Agent agent)
@@ -87,8 +95,12 @@ type Grid     = {
                                 |> (Map.filter (fun _ pos -> 
                                     match g.dynamicGrid.TryFind pos with
                                     | Some (Agent agent) -> predicate agent
+        
                                     | _ -> true)) }
-        member inline g.FilterDynamicObjects mapper = {g with dynamicGrid = g.dynamicGrid |> Map.filter mapper }
+
+        // TODO: update box position
+        member inline g.FilterDynamicObjects mapper = 
+          {g with dynamicGrid = g.dynamicGrid |> Map.map (fun pos (d: DynamicObject) -> if mapper pos d then d else DEmpty) }
 
         static member inline filterDynamicObjects mapper (g: Grid) = g.FilterDynamicObjects mapper
         static member inline filterAgents predicate (g: Grid) = g.FilterAgents predicate
@@ -174,12 +186,28 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
         | _, Some (Box(_,_,_))                     -> Error PositionOccupied
         | _,_                                    -> Error NotAssociatedObject
 
+
+let filterValidActions grid actions = 
+  actions
+  |> List.toArray
+  |> Array.map (fun a -> a,apply a grid)
+  |> Array.map (fun (a,c) -> 
+        match c with 
+        | Success s -> Some(a,s) 
+        | Error _   -> None)
+  |> Array.filter Option.isSome
+  |> Array.map Option.get
+  |> Array.toList
+
+let movePointer = 
+  [N;E;S;W]
+  |> List.fold (fun cur d -> MovePointer(d) :: cur) []
+
+let validMovePointer (grid: Grid) = 
+  movePointer |> filterValidActions grid
+
 // TODO: parallelise
 let allValidActions (grid: Grid) =
-  let movePointer = 
-    [N;E;S;W]
-    |> List.fold (fun cur d -> MovePointer(d) :: cur) []
-  
   let desireActions =
     match grid.desires.Head with
     | IsGoal 
@@ -231,15 +259,7 @@ let allValidActions (grid: Grid) =
        
   desireActions
   |> List.fold (fun cur a -> a :: cur) movePointer
-  |> List.toArray
-  |> Array.map (fun a -> a,apply a grid)
-  |> Array.map (fun (a,c) -> 
-        match c with 
-        | Success s -> Some(a,s) 
-        | Error _   -> None)
-  |> Array.filter Option.isSome
-  |> Array.map Option.get
-  |> Array.toList
+  |> filterValidActions grid
 
 // Parse map
 let readLines filename =
@@ -292,8 +312,8 @@ let parseMap colorMap (lines: list<int * string>) : Grid =
 
             | (i, c) when matchRegex @"[A-Z]" c -> 
               let id = Guid.NewGuid()
-              let box = Box (id,Char.ToLower c, getColor c colorMap)
-              { grid with dynamicGrid = grid.dynamicGrid |> Map.add (i,j) box; boxPos = Map.add id (i,j) grid.boxPos }
+              let box: Box = (id,Char.ToLower c, getColor c colorMap)
+              grid.AddBox (i,j) box
             
             | (i, '+')                          -> 
               { grid with dynamicGrid = grid.dynamicGrid |> Map.add (i,j) Wall }
@@ -314,6 +334,7 @@ let parseMap colorMap (lines: list<int * string>) : Grid =
 //    | Some (Agent(aId, c')) -> 
 //      c = c'
 //  | _ -> false
+
 
 let rec getObstructions curDesire (n: Node<Grid,Action>) =
   match n.parent with
@@ -387,15 +408,14 @@ let applyMoveBoxDesire (n: Node<Grid,Action>) (s: Grid) (bId: Guid) (forbidden: 
   | true -> s
   | false -> {s with desires = s.desires.Tail}
 
-
 let getChild (n: Node<Grid,Action>) (appliedAction: Action) (newState: Grid) : Node<Grid,Action> = 
   let resultState =
     match newState.searchPoint, newState.desires.Head with
     | None, _ -> newState
-    | Some p, FindBox(goalPos,goal) -> applyFindBoxDesire n newState p goal
+    | Some p, FindBox(goalPos,goal)-> applyFindBoxDesire n newState p goal
     | Some p, FindAgent(boxPos,boxType,c) -> applyFindAgentDesire n newState p boxType c
-    | Some p, MoveAgent(aPos,aid,forbidden) -> applyMoveAgentDesire n newState aid forbidden
-    | Some p, MoveBox(boxPos, bId, forbidden) -> applyMoveBoxDesire n newState bId forbidden
-    | Some p, IsGoal -> newState
+    | Some p, MoveAgent(aPos,aid,forbidden)-> applyMoveAgentDesire n newState aid forbidden
+    | Some p, MoveBox(boxPos, bId, forbidden)-> applyMoveBoxDesire n newState bId forbidden
+    | Some p, IsGoal-> newState
 
   { n with state = resultState; value = n.value + 1; action = appliedAction; parent = Some n; }

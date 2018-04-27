@@ -35,14 +35,18 @@ let getGoals grid =
     | SEmpty -> None)
   |> Map.filter (fun _ x -> Option.isSome x)
   |> Map.map (fun _ x -> Option.get x)
-  |> Map.toArray
+  |> Map.toList
 
+let testGoalOrdering level = 
+    let grid = getGrid level
+    let goals = orderGoals grid (Set.ofList (getGoals grid))
+    printfn "%A" goals
 
 let testSimpleSearch (level: string) () = 
     let grid = getGrid level
 
     getGoals grid
-    |> Array.map (fun (p,c) ->
+    |> List.map (fun (p,c) ->
       let problem = SokobanProblem (grid,p,c)
       match graphSearch problem with
       | None -> failwith "SASsimple1 solution not found"
@@ -51,22 +55,6 @@ let testSimpleSearch (level: string) () =
         |> List.map (fun n -> n.action)
         |> fun y -> printfn "%A" y
     )
-
-let findAdjecent (predicate: DynamicObject -> bool) (pos: Pos) (grid: Grid) : (Pos * DynamicObject) option = 
-    [N;S;E;W]
-    |> List.map (flip posFromDir pos)
-    |> List.map (fun pos -> pos, grid.dynamicGrid.TryFind pos)
-    |> List.tryFind (function
-                     | (pos, Some o) when predicate o -> true
-                     | _ -> false)
-    |> Option.map (function | (p, Some o) -> (p, o) | _ -> failwith "expected DynamicObject to be Some")
-
-let getAgentPos (g: Grid) = (Seq.head g.agentPos).Value
-
-let isBoxOfType    t = function | Box (_,t', _)   -> t' = t | _ -> false
-let isAgentOfColor c = function | Agent (_, c') -> c' = c | _ -> false
-
-let isBox = function | Box _ -> false | _ -> true
 
 // Search closest box (remove agents. agent at goal. goal state is agent next to box)
 // Argument: Agent is at box position implies that agent must have been adjecent in previous state.
@@ -123,6 +111,7 @@ let isBox = function | Box _ -> false | _ -> true
 
 type CommandLineOptions = {
     level: string;
+    runTests: bool;
     }
 
 let rec parseCommandLineInput args options = 
@@ -130,21 +119,27 @@ let rec parseCommandLineInput args options =
     | [] -> 
         options  
     | "-lvl"::h::t -> 
-        let updatedOptions = { options with level= (Path.GetFullPath h) }
+        let updatedOptions = { options with level= (Path.GetFullPath h); runTests = true }
         parseCommandLineInput t updatedOptions
     | h::t -> 
         eprintfn "Option '%s' is unrecognized" h
         parseCommandLineInput t options 
+
+let runTests () = 
+    testGoalOrdering "./levels/SAsimple2.lvl" |> ignore
 
 [<EntryPoint>]
 let main args =
     //testMinimal ()
     let mutable options = {
         level = Path.Combine(__SOURCE_DIRECTORY__, "./levels/testlevels/SAtest2.lvl")
+        runTests = true
         }
     options <- parseCommandLineInput (Array.toList args) options
 
-    testSimpleSearch options.level () |> ignore
+    if options.runTests 
+        then runTests ()
+        else testSimpleSearch options.level () |> ignore
 
     //let problem = SokobanProblem ("./levels/SAsimple1.lvl", Search.allGoalsMet)
     //printfn "%O" problem.Initial
