@@ -70,6 +70,7 @@ type SearchQueue<'s,'a when 's: comparison> =
                                   m = pq.m.Add (el.state, el)}
     member pq.Contains state = pq.m.ContainsKey state
     member pq.TryFind state = pq.m.TryFind state
+    member pq.Length = pq.q.Length
 
 [<AbstractClass>]
 type ISokobanProblem () =
@@ -91,12 +92,12 @@ type SokobanProblem (grid, goalPos, goal) =
 
 type PointerProblem (grid, goalPos, goal) = 
     inherit ISokobanProblem()
-    override p.Initial = {grid with desires = [(FindBox(goalPos,goal))]; searchPoint = Some goalPos }
+    override p.Initial = {grid with searchPoint = Some goalPos }
     override p.Actions s = Grid.validMovePointer s
     override p.GoalTest s = match s.searchPoint with 
                             | Some pointer -> Option.exists (isBoxOfType goal) (s.dynamicGrid.TryFind pointer)
                             | None -> false
-    override p.ChildNode n a s = Grid.getChild n a s
+    override p.ChildNode n a s = gridToNode n a s
     override p.initialAction () = NOP
 
     new(grid, goalPos, goal) = PointerProblem (grid, goalPos, goal)
@@ -122,9 +123,11 @@ let graphSearch (p: ISokobanProblem) =
     let pathCost = 0
     let f = (SearchQueue<Grid,Action>.empty).Insert initialEl
     let e: Set<Grid> = Set.empty
-    let rec loop (f: SearchQueue<Grid,Action>) = 
+    let rec loop (e: Set<Grid>) (f: SearchQueue<Grid,Action>) = 
         let frontierStates = Map.map (fun s n -> n.state) f.m
         // printfn "%O" frontierStates
+        // printfn "Size of explored: %O\n" e.Count
+        // printfn "Size of frontier: %O\n" f.Length
         if f.IsEmpty
         then None
         else 
@@ -133,7 +136,7 @@ let graphSearch (p: ISokobanProblem) =
             then Some (retrieveSolution n)
             else 
                 let e' = e.Add n.state
-                let f'' = p.Actions n.state |> List.fold (fun (f'':SearchQueue<Grid,Action>) (a,s) ->
+                let f'' = p.Actions n.state |> List.fold (fun (f'': SearchQueue<Grid,Action>) (a,s) ->
                     let c = p.ChildNode n a s
                     let isNew = not ((e'.Contains c.state) || (f''.Contains c.state))
                     let isCheaper = 
@@ -143,8 +146,8 @@ let graphSearch (p: ISokobanProblem) =
                     if isNew || isCheaper 
                     then f''.Insert c
                     else f'') f'
-                loop f''
-    loop f
+                loop e' f''
+    loop e f
 
 // TODO: multiple goals can use same box. Might lead ordering with non-trivial solution.
 let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoals : Set<Pos * Goal>) = 
@@ -155,7 +158,7 @@ let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoal
         let grid' = grid
                    |> Grid.removeAgents
                    |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
-                   |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) unsolvedGoals
+                   |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
         printfn "%O" grid'
         match graphSearch (PointerProblem (grid', goalPos, gt)) with
         | Some _ -> true

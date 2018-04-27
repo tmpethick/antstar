@@ -126,7 +126,7 @@ let rec parseCommandLineInput args options =
         parseCommandLineInput t options 
 
 let runTests () = 
-    testGoalOrdering "./levels/SAsimple2.lvl" |> ignore
+    testGoalOrdering "./levels/testlevels/SAtest3.lvl" |> ignore
 
 [<EntryPoint>]
 let main args =

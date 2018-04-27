@@ -24,15 +24,14 @@ type Grid     = {
                   if Option.exists ((=) (i,j)) g.searchPoint
                   then "O"
                   else
-                    match Map.find (i,j) g.staticGrid with
-                    | Goal t           -> t.ToString().ToLower()
-                    | SEmpty           -> 
-                      match Map.find (i,j) g.dynamicGrid with
-                      | Agent (t, _) -> t.ToString()
-                      | Wall         -> "+"
-                      | Box (id,t, _)   -> t.ToString().ToUpper()
-                      | DEmpty       -> " "
-                      ) 
+                    match Map.find (i,j) g.dynamicGrid with
+                    | Agent (t, _) -> t.ToString()
+                    | Wall         -> "+"
+                    | Box (id,t, _)-> t.ToString().ToUpper()
+                    | DEmpty       -> 
+                      match Map.find (i,j) g.staticGrid with
+                      | Goal t -> t.ToString().ToLower()
+                      | SEmpty -> " ") 
               |> toLine) 
           |> flatten
         
@@ -408,6 +407,8 @@ let applyMoveBoxDesire (n: Node<Grid,Action>) (s: Grid) (bId: Guid) (forbidden: 
   | true -> s
   | false -> {s with desires = s.desires.Tail}
 
+let gridToNode (n: Node<Grid,Action>) a s = { n with state = s; value = n.value + 1; action = a; parent = Some n; }
+
 let getChild (n: Node<Grid,Action>) (appliedAction: Action) (newState: Grid) : Node<Grid,Action> = 
   let resultState =
     match newState.searchPoint, newState.desires.Head with
@@ -418,4 +419,4 @@ let getChild (n: Node<Grid,Action>) (appliedAction: Action) (newState: Grid) : N
     | Some p, MoveBox(boxPos, bId, forbidden)-> applyMoveBoxDesire n newState bId forbidden
     | Some p, IsGoal-> newState
 
-  { n with state = resultState; value = n.value + 1; action = appliedAction; parent = Some n; }
+  gridToNode n appliedAction resultState
