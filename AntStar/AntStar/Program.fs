@@ -7,6 +7,20 @@ open Grid
 open Search
 open System.Dynamic
 
+let rec toOutput (l: Action list): string list =
+    match l with
+    | []                -> []
+    | NOP::t            -> "[NoOp]"::toOutput t
+    | Move (_,d)::t     -> "[Move("+string d+")]"::toOutput t
+    | Pull(_,ad,bd)::t  -> "[Pull("+string ad+","+string bd+")]"::toOutput t
+    | Push(_,ad,bd)::t  -> "[Push("+string ad+","+string bd+")]"::toOutput t
+    | MovePointer(_)::t -> toOutput t
+    
+let rec printOutput (l:string list) = 
+    match l with
+    | []   -> []
+    | h::t -> printfn "%s" h :: printOutput t
+
 let printPossibleOutcomes state = Grid.allValidActions state 
                                   |> List.map (fun (_, s') -> printfn "%O" s') 
                                   |> ignore
@@ -106,7 +120,8 @@ let testSimpleSearch (level: string) () =
       | Some x -> 
         x
         |> List.map (fun n -> n.action)
-        |> fun y -> printfn "%A" y
+        |> toOutput
+        |> printOutput
     )
 
 // Search closest box (remove agents. agent at goal. goal state is agent next to box)
@@ -206,5 +221,5 @@ let main args =
     // testSolveSubGoals ()
 
     // printfn "Press any key to exit"
-    Console.ReadKey() |> ignore
+    // Console.ReadKey() |> ignore
     0 // return an integer exit code
