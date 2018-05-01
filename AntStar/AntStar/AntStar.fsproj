@@ -35,13 +35,63 @@
     <None Include="levels\testlevels\SAtest0.lvl" />
     <None Include="levels\testlevels\SAtest1.lvl" />
     <None Include="levels\testlevels\SAtest2.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAAIoliMAsh.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MABeliebers.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MABlinky.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MABoxBunny.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MABronies.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MADAT.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MADoDo.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAEvilCorp.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAFooBar.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAGeneralAI.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAGroupOne.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAHALnineK.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAHiveMind.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAIamGreedy.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAJomarki.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAKalle.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MALemmings.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MALiquorice.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAMASters.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAMasAiArne.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MANeverMind.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAOmnics.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MATALK.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAgroupname.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\MAtnrbts.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAAIoliMAsh.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SABeliebers.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SABlinky.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SABoxBunny.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SABronies.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SADAT.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SADoDo.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAEvilCorp.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAFooBar.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAGeneralAI.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAGroupOne.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAHALnineK.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAHiveMind.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAIamGreedy.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAJomarki.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAKalle.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SALemmings.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SALiquorice.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAMASters.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAMasAiArne.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SANeverMind.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAOmnics.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SATALK.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAgroupname.lvl" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAtnrbts.lvl" />
     <Compile Include="Domain.fs" />
     <Compile Include="Grid.fs" />
     <Compile Include="Search.fs" />
     <None Include="Playground.fsx" />
     <Compile Include="Program.fs" />
     <PackageReference Include="FSharpx.Collections" Version="1.17.0" />
-    <PackageReference Include="Unit" Version="1.0.0" />
     <PackageReference Include="NUnit" Version="3.10.1" />
+    <PackageReference Include="Unit" Version="1.0.0" />
   </ItemGroup>
 </Project>
