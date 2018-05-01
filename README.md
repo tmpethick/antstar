@@ -1,5 +1,16 @@
 # AntStar
 
+# TODO
+
+- Heuristic based on PointerProblem (test on SAEvilCorp.lvl)
+- Multiagent
+  - Output actions for all agent (NOP as default for agents doing nothing)
+  - run previous actions at the same time
+  - merge (oh boy)
+- Goal ordering: make adjustments before solving goal greedily (see SAtest3.lvl)
+- Run different goal sequence permutations in parallel
+
+
 ## Build
 
 ```

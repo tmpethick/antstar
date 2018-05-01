@@ -1,10 +1,11 @@
 
-runtests:
+runonfile:
 	MSBuild AntStar/AntStar/AntStar.fsproj /p:Configuration=Release;Targets=Clean
-	dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll
-
-runtestfiles:
-	./antstar.sh
+	cat AntStar/AntStar/levels/SAanagram.lvl > dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll
 
 testonserver:
-	java -jar ../environment/server.jar -g 300 -c"dotnet ../antstar/AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll -lvl ../antstar/AntStar/Antstar/levels/SAanagram.lvl" -l ../environment/levels/SAanagram.lvl
+	MSBuild AntStar/AntStar/AntStar.fsproj /p:Configuration=Release;Targets=Clean
+	java -jar environment/server.jar -g 300 -c"dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll" -l AntStar/AntStar/levels/SAanagram.lvl
+
+run:
+	cat AntStar/AntStar/levels/SAanagram.lvl | xargs -I {} dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll {}

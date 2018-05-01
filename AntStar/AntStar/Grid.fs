@@ -173,7 +173,7 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
     | None   -> Error AgentNotOnMap
     | Some curAPos -> 
       let newAPos = posFromDir ad curAPos
-      let curBPos = posFromDir (flipDir bd) curAPos
+      let curBPos = posFromDir bd curAPos
       grid.GetAgent a
       |?> fun (_,c') -> 
         match grid.dynamicGrid.TryFind newAPos, grid.dynamicGrid.TryFind curBPos with
