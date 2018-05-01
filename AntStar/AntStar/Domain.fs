@@ -11,6 +11,9 @@ type StaticObject  = Goal of Goal | SEmpty
 type DynamicObject = Agent of Agent | Box of Box | Wall | DEmpty
 
 let getId ((id,_,_): Box) = id
+let getBoxColor ((_,_,color): Box) = color
+
+let getAgentIdx (idx,_) = idx
 
 let defaultColor = Blue
 let defaultAgent: Agent = ('0', defaultColor)
@@ -83,7 +86,6 @@ type Node<'s,'a> = {
     parent : Node<'s,'a> option;
     action : 'a;
     cost   : Cost;
-    depth  : int;
     value  : int;}
     with
     interface System.IComparable with

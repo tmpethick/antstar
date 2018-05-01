@@ -205,6 +205,19 @@ let movePointer =
 let validMovePointer (grid: Grid) = 
   movePointer |> filterValidActions grid
 
+let allSokobanActions (agentIdx: AgentIdx) (grid: Grid) = 
+  let moves = 
+    [N;S;E;W]
+    |> List.map (fun d -> Move (agentIdx, d))
+  
+  cartesian [N;S;E;W] [N;S;E;W]
+  |> List.fold (fun cur (d1,d2) ->
+    Push(agentIdx, d1, d2) :: Pull(agentIdx,d1,d2) :: cur
+    ) (NOP :: moves)
+
+let validSokobanActions agentIdx (grid: Grid) = 
+  allSokobanActions agentIdx grid |> filterValidActions grid
+
 // TODO: parallelise
 let allValidActions (grid: Grid) =
   let desireActions =
@@ -407,7 +420,10 @@ let applyMoveBoxDesire (n: Node<Grid,Action>) (s: Grid) (bId: Guid) (forbidden: 
   | true -> s
   | false -> {s with desires = s.desires.Tail}
 
-let gridToNode (n: Node<Grid,Action>) a s = { n with state = s; value = n.value + 1; action = a; parent = Some n; }
+// No heurstics
+let gridToNode (n: Node<Grid,Action>) a s = 
+  let cost = n.cost + 1
+  { n with state = s; cost = cost; value = cost; action = a; parent = Some n; }
 
 let getChild (n: Node<Grid,Action>) (appliedAction: Action) (newState: Grid) : Node<Grid,Action> = 
   let resultState =

@@ -47,9 +47,6 @@ type Problem<'s, 'a> () =
    abstract member GoalTest: 's -> bool
    abstract member ChildNode: Node<'s,'a> -> 'a -> 's -> Node<'s,'a>
    abstract member initialAction: unit -> 'a
-   member this.CostP (cost: Cost) (_: 's) (_: 'a) (_: 's) = cost + 1
-   member this.Heuristic (_: Node<'s,'a>) : Cost = 0
-   member this.ValueP (_: 's) : Cost = 0
 
 let root (p: Problem<'s,'a>): Node<'s,'a> = 
         let s = p.Initial
@@ -57,8 +54,7 @@ let root (p: Problem<'s,'a>): Node<'s,'a> =
           parent = None;
           action = p.initialAction ();
           cost   = 0;
-          depth  = 0;
-          value  = p.ValueP s}
+          value  = 0}
 
 type SearchQueue<'s,'a when 's: comparison> = 
     {q: IPriorityQueue<Node<'s,'a>>; m: Map<'s,Node<'s,'a>> }
@@ -90,17 +86,40 @@ type SokobanProblem (grid, goalPos, goal) =
 
     new(grid, goalPos, goal) = SokobanProblem (grid, goalPos, goal)
 
-type PointerProblem (grid, goalPos, goal) = 
+type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean) = 
     inherit ISokobanProblem()
-    override p.Initial = {grid with searchPoint = Some goalPos }
+    override p.Initial = {grid with searchPoint = Some startPos }
     override p.Actions s = Grid.validMovePointer s
     override p.GoalTest s = match s.searchPoint with 
-                            | Some pointer -> Option.exists (isBoxOfType goal) (s.dynamicGrid.TryFind pointer)
+                            | Some pointer -> goalTest pointer s
                             | None -> false
     override p.ChildNode n a s = gridToNode n a s
     override p.initialAction () = NOP
 
-    new(grid, goalPos, goal) = PointerProblem (grid, goalPos, goal)
+let boxGoalTest goal pointer s = Option.exists (isBoxOfType goal) (s.dynamicGrid.TryFind pointer)
+type BoxPointerProblem (grid, startPos, goal) =
+    inherit PointerProblem(grid, startPos, boxGoalTest goal)
+
+let agentGoalTest color pointer s = Option.exists (isAgentOfColor color) (s.dynamicGrid.TryFind pointer)
+type AgentPointerProblem (grid, startPos, color) =
+    inherit PointerProblem(grid, startPos, agentGoalTest color)
+
+let manhattanDistance p1 p2 = abs (fst p1 - fst p2) + abs (snd p1 - snd p2)
+
+type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid) =
+    inherit ISokobanProblem()
+
+    override p.Initial = grid
+    override p.Actions s = Grid.validSokobanActions agentIdx s
+    override p.GoalTest s = let boxPos = Map.find boxGuid s.boxPos
+                            goalPos = boxPos
+                            
+    override p.ChildNode n a s = 
+        let boxPos = Map.find boxGuid s.boxPos
+        let agentPos = Map.find agentIdx s.agentPos
+        let node = gridToNode n a s
+        {node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}
+    override p.initialAction () = NOP
 
 let allGoalsMet (grid: Grid) = 
     grid.staticGrid
@@ -159,8 +178,8 @@ let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoal
                    |> Grid.removeAgents
                    |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
                    |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
-        printfn "%O" grid'
-        match graphSearch (PointerProblem (grid', goalPos, gt)) with
+        // printfn "%O" grid'
+        match graphSearch (BoxPointerProblem (grid', goalPos, gt)) with
         | Some _ -> true
         | None -> false  
 

@@ -5,6 +5,7 @@ open System.IO
 open Domain
 open Grid
 open Search
+open System.Dynamic
 
 let printPossibleOutcomes state = Grid.allValidActions state 
                                   |> List.map (fun (_, s') -> printfn "%O" s') 
@@ -37,7 +38,59 @@ let getGoals grid =
   |> Map.map (fun _ x -> Option.get x)
   |> Map.toList
 
+let unWrap = function
+    | Success s -> s
+    | Error _ -> failwith "nooooo"
+
+
+let pickBox ((goalPos, gt): Pos * Goal) (grid: Grid): Context<Pos * Box> = 
+    let grid' = grid
+            //    |> Grid.removeAgents
+            //    |> Grid.filterDynamicObjects (fun _ -> isOfTypeIfBox gt)
+    match graphSearch (BoxPointerProblem (grid', goalPos, gt)) with
+        | Some s -> 
+            let state = s.Head.state
+            let boxPos = state.searchPoint.Value
+            match Map.find boxPos state.dynamicGrid with
+            | Box box -> Success (boxPos, box)
+            | _ -> failwith "search should always lead to a box..." 
+        | None -> Error NoGoalToBoxPathFound
+
+let pickAgent ((boxPos, boxColor): Pos * Color) (grid: Grid): Context<Pos * Agent> = 
+    let grid' = grid
+            //    |> Grid.filterDynamicObjects (fun _ -> not << isBox)
+            //    |> Grid.filterAgents (snd >> (=)boxColor)
+    match graphSearch (AgentPointerProblem (grid', boxPos, boxColor)) with
+        | Some s -> 
+            let state = s.Head.state
+            let agentPos = state.searchPoint.Value
+            match Map.find agentPos state.dynamicGrid with
+            | Agent agent -> Success (agentPos, agent)
+            | _ -> failwith "search should always lead to a box..." 
+        | None -> Error NoGoalToBoxPathFound
+
+let solveGoal (goalPos, goal) grid : Action list * Grid = 
+        let boxPos, box = pickBox (goalPos, goal) grid |> unWrap
+        let agentPos, agent = pickAgent (boxPos, getBoxColor box) grid |> unWrap
+        match AStarSokobanProblem (goalPos, getId box, getAgentIdx agent, grid) |> graphSearch with
+        | Some solution -> 
+            let state = solution.Head.state.AddWall goalPos
+            solution |> List.map (fun n -> n.action), state
+        | None -> failwith "come on"
+
+let rec solveGoals actions grid = function 
+    | [] -> actions
+    | goal :: goals -> let actions', grid' = solveGoal goal grid
+                       solveGoals (actions @ List.rev actions') grid' goals 
+
 let testGoalOrdering level = 
+    let grid = getGrid level
+    let goals = orderGoals grid (Set.ofList (getGoals grid))
+    solveGoals [] grid goals |> printfn "%A"
+
+let isOfTypeIfBox gt d = (((not << isBox) d) || (isBoxOfType gt d))
+
+let testSA level = 
     let grid = getGrid level
     let goals = orderGoals grid (Set.ofList (getGoals grid))
     printfn "%A" goals
@@ -126,7 +179,7 @@ let rec parseCommandLineInput args options =
         parseCommandLineInput t options 
 
 let runTests () = 
-    testGoalOrdering "./levels/testlevels/SAtest3.lvl" |> ignore
+    testGoalOrdering "./levels/SAanagram.lvl" |> ignore
 
 [<EntryPoint>]
 let main args =
