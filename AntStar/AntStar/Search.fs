@@ -105,21 +105,13 @@ type AgentPointerProblem (grid, startPos, color) =
     inherit PointerProblem(grid, startPos, agentGoalTest color)
 
 let manhattanDistance p1 p2 = abs (fst p1 - fst p2) + abs (snd p1 - snd p2)
+type PosPointerProblem (grid, startPos, endPos) =
+    inherit PointerProblem(grid, startPos, fun p -> fun _ -> p = endPos)
 
-type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid) =
-    inherit ISokobanProblem()
-
-    override p.Initial = grid
-    override p.Actions s = Grid.validSokobanActions agentIdx s
-    override p.GoalTest s = let boxPos = Map.find boxGuid s.boxPos
-                            goalPos = boxPos
-                            
     override p.ChildNode n a s = 
-        let boxPos = Map.find boxGuid s.boxPos
-        let agentPos = Map.find agentIdx s.agentPos
-        let node = gridToNode n a s
-        {node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}
-    override p.initialAction () = NOP
+      let child = gridToNode n a s
+      {child with value = child.cost + manhattanDistance child.state.searchPoint.Value endPos}
+
 
 let allGoalsMet (grid: Grid) = 
     grid.staticGrid
@@ -191,3 +183,35 @@ let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoal
 
 let orderGoals grid unsolvedGoals = orderGoals' grid [] unsolvedGoals
 
+type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid) =
+    inherit ISokobanProblem()
+
+    override p.Initial = grid
+    override p.Actions s = Grid.validSokobanActions agentIdx s
+    override p.GoalTest s = let boxPos = Map.find boxGuid s.boxPos
+                            goalPos = boxPos
+                            
+    override p.ChildNode n a s = 
+        let boxPos = Map.find boxGuid s.boxPos
+        let boxProblem = 
+          PosPointerProblem(grid, goalPos, boxPos)
+          |> graphSearch
+          |> Option.get
+          |> fun x ->
+            match x with
+            | [] -> 0
+            | x::xs -> x.value
+
+        let agentPos = Map.find agentIdx s.agentPos
+        let agentProblem = 
+          PosPointerProblem(grid, boxPos, agentPos)
+          |> graphSearch
+          |> Option.get
+          |> fun x ->
+            match x with
+            | [] -> 0
+            | x::xs -> x.value
+        let node = gridToNode n a s
+        {node with value = node.cost + 10*boxProblem + 10*agentProblem}
+        //{node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}
+    override p.initialAction () = NOP

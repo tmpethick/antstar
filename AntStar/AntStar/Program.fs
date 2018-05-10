@@ -111,6 +111,7 @@ let rec readInput() =
 [<EntryPoint>]
 let main args =
     let lines = readInput ()
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SASimple1.lvl"))
     let grid = getGridFromLines (Seq.toList lines)
     testGoalOrdering grid |> ignore
     0
