@@ -216,8 +216,14 @@ let allSokobanActions (agentIdx: AgentIdx) (grid: Grid) =
     Push(agentIdx, d1, d2) :: Pull(agentIdx,d1,d2) :: cur
     ) (NOP :: moves)
 
-let validSokobanActions agentIdx (grid: Grid) = 
-  allSokobanActions agentIdx grid |> filterValidActions grid
+let validSokobanActions agentCount agentIdx (grid: Grid) = 
+  let agentInt = agentIdx |> System.Char.GetNumericValue |> int
+  allSokobanActions agentIdx grid 
+  |> filterValidActions grid
+  |> List.map (fun (a, grid) -> 
+    let actions = Array.create agentCount NOP
+    Array.set actions agentInt a
+    actions, grid)
 
 // TODO: parallelise
 let allValidActions (grid: Grid) =
@@ -348,19 +354,6 @@ let parseMap colorMap (lines: list<int * string>) : Grid =
 //    | Some (Agent(aId, c')) -> 
 //      c = c'
 //  | _ -> false
-
-let rec getObstructions curDesire (n: Node<Grid,Action>) =
-  match n.parent with
-  | Some n' ->
-    if curDesire <> n'.state.desires.Head then None else
-    match n.state.searchPoint with
-    | Some p -> 
-      match n.state.dynamicGrid.TryFind p with
-      | Some DEmpty -> getObstructions curDesire n'
-      | Some x -> Some (p,x)
-      | None -> None // return error here
-    | None -> None // return error here
-  | None -> None
   
 let rec getPositions curDesire positions (n: Node<Grid,Action>) =
   if curDesire <> n.state.desires.Head then positions else
@@ -372,68 +365,10 @@ let rec getPositions curDesire positions (n: Node<Grid,Action>) =
   | None -> positions
  
  
-let tryGetObstructionState curDesire n s = 
-  match getObstructions curDesire n with
-  | Some (objP,obj) -> 
-    let forbiddenPositions = getPositions curDesire [] n
-    let desire = 
-      match obj with
-      | Agent((idx,_)) -> MoveAgent(objP, idx, forbiddenPositions)
-      | Box(id,objType',c') -> MoveBox(objP, id, forbiddenPositions)
-      | _ -> failwith "Unknown obstruction"
-    Some 
-      {s with 
-        desires = (desire :: s.desires)
-        searchPoint = Some objP }
-  | None -> None
-
-let applyFindBoxDesire (n: Node<Grid,Action>) (s: Grid) (p: Pos) (goal: Goal) = 
-  match s.dynamicGrid.TryFind p with
-  | Some (Box(_,objType,c)) when objType = goal ->
-    match tryGetObstructionState s.desires.Head n s with
-    | Some obsState -> obsState
-    | None -> {s with desires = FindAgent(p, objType, c) :: s.desires}
-  | _ -> s
-
-let applyFindAgentDesire (n: Node<Grid,Action>) (s: Grid) (p: Pos) (boxType: ObjType) (c: Color) = 
-  match s.dynamicGrid.TryFind p with
-  | Some (Agent(aId,c')) when c = c' ->
-    match tryGetObstructionState s.desires.Head n s with
-    | Some obsState -> obsState
-    | None -> {s with desires = IsGoal :: s.desires}
-  | _ -> s
-
-let applyMoveAgentDesire (n: Node<Grid,Action>) (s: Grid) (aid: AgentIdx) (forbidden: Pos list) = 
-  match s.agentPos.TryFind aid with
-  | Some p -> 
-    match forbidden |> List.contains p with
-    | true -> s
-    | false -> {s with desires = s.desires.Tail}
-  | None -> failwith "Unknown agent"
-
-let applyMoveBoxDesire (n: Node<Grid,Action>) (s: Grid) (bId: Guid) (forbidden: Pos list) = 
-  let boxPos =
-    match Map.tryFind bId s.boxPos with
-    | Some bp -> bp
-    | None -> failwith "unknown box"
-
-  match forbidden |> List.contains boxPos with
-  | true -> s
-  | false -> {s with desires = s.desires.Tail}
-
 // No heurstics
-let gridToNode (n: Node<Grid,Action>) a s = 
+let gridToNode (n: Node<Grid,Action []>) a s = 
   let cost = n.cost + 1
   { n with state = s; cost = cost; value = cost; action = a; parent = Some n; }
 
-let getChild (n: Node<Grid,Action>) (appliedAction: Action) (newState: Grid) : Node<Grid,Action> = 
-  let resultState =
-    match newState.searchPoint, newState.desires.Head with
-    | None, _ -> newState
-    | Some p, FindBox(goalPos,goal)-> applyFindBoxDesire n newState p goal
-    | Some p, FindAgent(boxPos,boxType,c) -> applyFindAgentDesire n newState p boxType c
-    | Some p, MoveAgent(aPos,aid,forbidden)-> applyMoveAgentDesire n newState aid forbidden
-    | Some p, MoveBox(boxPos, bId, forbidden)-> applyMoveBoxDesire n newState bId forbidden
-    | Some p, IsGoal-> newState
-
-  gridToNode n appliedAction resultState
+let getChild (n: Node<Grid,Action []>) (appliedAction: Action []) (newState: Grid) : Node<Grid,Action []> = 
+  gridToNode n appliedAction newState

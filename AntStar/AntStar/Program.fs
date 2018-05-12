@@ -6,14 +6,22 @@ open Domain
 open Grid
 open Search
 
-let rec toOutput (l: Action list): string list =
-    match l with
-    | []                -> []
-    | NOP::t            -> "[NoOp]"::toOutput t
-    | Move (_,d)::t     -> "[Move("+string d+")]"::toOutput t
-    | Pull(_,ad,bd)::t  -> "[Pull("+string ad+","+string bd+")]"::toOutput t
-    | Push(_,ad,bd)::t  -> "[Push("+string ad+","+string bd+")]"::toOutput t
-    | MovePointer(_)::t -> toOutput t
+let convertAction = function
+    | NOP            -> "NoOp" |> Some 
+    | Move (_,d)     -> "Move("+string d+")" |> Some 
+    | Pull(_,ad,bd)  -> "Pull("+string ad+","+string bd+")" |> Some 
+    | Push(_,ad,bd)  -> "Push("+string ad+","+string bd+")" |> Some 
+    | MovePointer(_) -> None
+
+let convertActionArray actionArray =
+    let elems = Array.map convertAction actionArray
+                |> Array.choose id
+                |> String.concat ","
+    let s = String.concat "" ["["; elems; "]"]
+    eprintfn "%s" s
+    s
+
+let rec toOutput (l: (Action []) list): string list = List.map convertActionArray l
     
 let rec printOutput (l:string list) = 
     match l with
@@ -34,7 +42,6 @@ let rec testActions state = function
 
 let getGridFromLines lines = 
   let colors, gridLines = parseColors Map.empty (lines)
-  eprintfn "%O" colors
   parseMap colors (gridLines |> addIdx)
 
 let getGrid filename =
@@ -157,8 +164,8 @@ let freePos (state: Grid): Set<Pos> =
     |> Seq.map fst
     |> Set.ofSeq
 
-let getActionsAndResultingState (solution: Node<Grid,Action> list) = 
-    (List.map (fun n -> n.action) solution), solution.Head.state
+let getActionsAndResultingState (solution: Node<Grid,Action []> list) = 
+    List.rev (List.map (fun n -> n.action) solution), solution.Head.state
 
 let solveObstacle (pos: Pos) (state: Grid) = 
     let goalPositions = freePos state
@@ -179,6 +186,7 @@ let createClearPath (goalPos, goal) grid =
     let (box, boxPos), goalPath = pickBox (goalPos, goal) grid
     let (agent, agentPos), boxPath = pickAgent (boxPos, getBoxColor box) grid
     let solutionPath = boxPath @ goalPath
+                       |> List.tail // Drop Agent pos
 
     let rec clearPath gridAcc solutionAcc = 
         match getObstacleFromPath (getAgentColor agent) gridAcc solutionPath with
@@ -188,27 +196,28 @@ let createClearPath (goalPos, goal) grid =
         | None -> 
             gridAcc, solutionAcc
     let grid', actions = clearPath grid []
-    eprintfn "%O" grid'
+    // eprintfn "%O" grid'
+    // eprintfn "%A" (toOutput actions)
     box, agent, (grid', actions)
 
 
-let solveGoal (goalPos, goal) prevH grid : Action list * Grid = 
+let solveGoal (goalPos, goal) prevH grid : Action [] list * Grid = 
         let box, agent, (grid', actions) = createClearPath (goalPos, goal) grid
-        match AStarSokobanProblem (goalPos, getId box, getAgentIdx agent, grid, prevH) |> graphSearch with
+        match AStarSokobanProblem (goalPos, getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
         | Some solution -> 
             let state = solution.Head.state.AddWall goalPos
-            actions @ (List.map (fun n -> n.action) solution), state
+            actions @ List.rev (List.map (fun n -> n.action) solution), state
         | None -> failwith "come on"
 
 let rec solveGoals actions prevH grid = function 
     | [] -> actions
     | goal :: goals -> let actions', grid' = solveGoal goal prevH grid
-                       solveGoals (actions @ List.rev actions') prevH grid' goals 
+                       solveGoals (actions @ actions') prevH grid' goals 
 
 let testGoalOrdering grid = 
     eprintfn "Ordering goals"
     let goals = orderGoals grid (Set.ofList (getGoals grid))
-    eprintfn "Goal order: %s" (goals |> List.map snd |> List.map (fun x -> string x) |> String.concat ",") 
+    eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
     eprintfn "Precomputing h values"
     let prevH = getPositions grid
     eprintfn "Solving goals"

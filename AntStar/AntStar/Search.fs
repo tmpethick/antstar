@@ -70,31 +70,17 @@ type SearchQueue<'s,'a when 's: comparison> =
 
 [<AbstractClass>]
 type ISokobanProblem () =
-   inherit Problem<Grid,Action>()
-
-// type SokobanProblem (grid, goalPos, goal) = 
-//     inherit ISokobanProblem()
-
-//     override p.Initial = {grid with desires = (FindBox(goalPos,goal) :: grid.desires); searchPoint = Some goalPos}
-//     override p.Actions s = Grid.allValidActions s
-//     override p.GoalTest s = s.desires.Head = IsGoal
-//     override p.ChildNode n a s = 
-//         let child = Grid.getChild n a s
-//         printfn "%O" child.state 
-//         child
-//     override p.initialAction () = NOP
-
-//     new(grid, goalPos, goal) = SokobanProblem (grid, goalPos, goal)
+   inherit Problem<Grid,Action []>()
 
 type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean) = 
     inherit ISokobanProblem()
     override p.Initial = {grid with searchPoint = Some startPos }
-    override p.Actions s = Grid.validMovePointer s
+    override p.Actions s = Grid.validMovePointer s |> List.map (fun (a,g) -> (Array.create 1 a, g))
     override p.GoalTest s = match s.searchPoint with 
                             | Some pointer -> goalTest pointer s
                             | None -> false
     override p.ChildNode n a s = gridToNode n a s
-    override p.initialAction () = NOP
+    override p.initialAction () = [|NOP|]
 
 let boxGoalTest goal pointer s = s.dynamicGrid.TryFind pointer |> Option.exists (isBoxOfType goal)
 type BoxPointerProblem (grid, startPos, goal) =
@@ -135,9 +121,9 @@ let rec retrieveSolution (n: Node<'s,'a>) =
 
 let graphSearch (p: ISokobanProblem) = 
     let initialEl = root p
-    let f = (SearchQueue<Grid,Action>.empty).Insert initialEl
+    let f = (SearchQueue<Grid,Action []>.empty).Insert initialEl
     let e: Set<Grid> = Set.empty
-    let rec loop (e: Set<Grid>) (f: SearchQueue<Grid,Action>) = 
+    let rec loop (e: Set<Grid>) (f: SearchQueue<Grid,Action []>) = 
         // let frontierStates = Map.map (fun s n -> n.state) f.m
         // printfn "%O" frontierStates
         // eprintfn "Size of explored: %O\n" e.Count
@@ -150,7 +136,7 @@ let graphSearch (p: ISokobanProblem) =
                 Some (retrieveSolution n)
             else 
                 let e' = e.Add n.state
-                let f'' = p.Actions n.state |> List.fold (fun (f'': SearchQueue<Grid,Action>) (a,s) ->
+                let f'' = p.Actions n.state |> List.fold (fun (f'': SearchQueue<Grid,Action []>) (a,s) ->
                     let c = p.ChildNode n a s
                     let isNew = not ((e'.Contains c.state) || (f''.Contains c.state))
                     let isCheaper = 
@@ -190,20 +176,21 @@ let orderGoals grid unsolvedGoals = orderGoals' grid [] unsolvedGoals
 
 type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) = 
     inherit ISokobanProblem()
-
+    let numAgents = grid.agentPos.Count
     override p.Initial = grid
-    override p.Actions s = Grid.validSokobanActions agentIdx s
+    override p.Actions s = Grid.validSokobanActions numAgents agentIdx s
     override p.GoalTest s = goalTest agentIdx s
     override p.ChildNode n a s = 
       let child = gridToNode n a s
       {child with value = child.cost}
-    override p.initialAction () = NOP
+    override p.initialAction () = Array.create numAgents NOP
 
 type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>) = 
     inherit ISokobanProblem()
 
+    let numAgents = grid.agentPos.Count
     override p.Initial = grid
-    override p.Actions s = Grid.validSokobanActions agentIdx s
+    override p.Actions s = Grid.validSokobanActions numAgents agentIdx s
     override p.GoalTest s = let boxPos = Map.find boxGuid s.boxPos
                             goalPos = boxPos
                             
@@ -216,4 +203,4 @@ type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: 
         let node = gridToNode n a s
         {node with value = node.cost + 10*boxH + 10*agentH}
         //{node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}
-    override p.initialAction () = NOP
+    override p.initialAction () = Array.create numAgents NOP
