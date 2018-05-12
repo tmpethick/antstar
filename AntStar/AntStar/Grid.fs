@@ -140,8 +140,9 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
     | None -> Error SearchPointerIsNone
     | Some p ->
       let newPos = posFromDir d p 
-      match grid.dynamicGrid.[newPos] with
-      | Wall  -> Error PositionOccupied
+      match grid.dynamicGrid.TryFind newPos with
+      | None -> Error InvalidGridPosition
+      | Some Wall  -> Error PositionOccupied
       | _ -> Success {grid with searchPoint = Some newPos}
   | NOP       -> Success grid
   | Move(a,d) -> 
@@ -297,6 +298,7 @@ let rec parseColors colorMap = function
          | [|c;objList|]  -> 
             let colorMap' = 
               (objList.Split [|','|])
+              |> Array.map (fun s -> s.Trim())
               |> Array.fold (fun s (o: string) -> 
                 Map.add (o.Chars(0)) (parseColor c) s
               ) colorMap

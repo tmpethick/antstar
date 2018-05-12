@@ -32,6 +32,7 @@
     <None Include="levels\SAtowersOfSaigon5.lvl" />
     <None Include="levels\SAminimal.lvl" />
     <None Include="levels\SAmultiple.txt" />
+    <None Include="levels\testlevels\competition_levelsSP17\SAEvilCorp - Copy.lvl" />
     <None Include="levels\testlevels\SAtest0.lvl" />
     <None Include="levels\testlevels\SAtest1.lvl" />
     <None Include="levels\testlevels\SAtest2.lvl" />

@@ -166,15 +166,17 @@ let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoal
     // search for box of Goal type
     // return true if exists
     let isSolvableGoal ((goalPos, gt): Pos * Goal) = 
-        let grid' = grid
-                   |> Grid.removeAgents
-                   |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
-                   |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
+        let grid' = 
+          grid
+          |> Grid.removeAgents
+          |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
+          |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
+
         // printfn "%O" grid'
         match graphSearch (BoxPointerProblem (grid', goalPos, gt)) with
         | Some _ -> true
         | None -> false  
-
+    
     if unsolvedGoals.IsEmpty 
         then orderedGoals
         else match Set.toList unsolvedGoals |> List.tryFind isSolvableGoal with
@@ -183,7 +185,7 @@ let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoal
 
 let orderGoals grid unsolvedGoals = orderGoals' grid [] unsolvedGoals
 
-type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid) =
+type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>) =
     inherit ISokobanProblem()
 
     override p.Initial = grid
@@ -193,25 +195,11 @@ type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: 
                             
     override p.ChildNode n a s = 
         let boxPos = Map.find boxGuid s.boxPos
-        let boxProblem = 
-          PosPointerProblem(grid, goalPos, boxPos)
-          |> graphSearch
-          |> Option.get
-          |> fun x ->
-            match x with
-            | [] -> 0
-            | x::xs -> x.value
+        let boxH = Map.find (goalPos,boxPos) prevHValues
 
         let agentPos = Map.find agentIdx s.agentPos
-        let agentProblem = 
-          PosPointerProblem(grid, boxPos, agentPos)
-          |> graphSearch
-          |> Option.get
-          |> fun x ->
-            match x with
-            | [] -> 0
-            | x::xs -> x.value
+        let agentH = Map.find (boxPos,agentPos) prevHValues
         let node = gridToNode n a s
-        {node with value = node.cost + 10*boxProblem + 10*agentProblem}
+        {node with value = node.cost + 10*boxH + 10*agentH}
         //{node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}
     override p.initialAction () = NOP
