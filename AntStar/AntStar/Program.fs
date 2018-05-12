@@ -56,27 +56,23 @@ let unWrap = function
 
 
 let searchAllPositions grid startPos =
-    let f: Map<Pos,int> = Map.ofArray [|(startPos,0)|]
+    let f: (Pos * int) list = [(startPos,0)]
     let e: (Pos * int) list = [] 
     let seen: Set<Pos> = set [startPos]
-    let rec loop (f: Map<Pos,int>) (e: (Pos * int) list) (seen: Set<Pos>) = 
-        if f.IsEmpty then e else             
-          let p,c = Map.pick (fun p c -> Some (p,c)) f
-          let f' = Map.remove p f
-          let e' = (p,c) :: e
+    let rec loop (f: (Pos * int) list) (e: (Pos * int) list) (seen: Set<Pos>) = 
+        match f with
+        | [] -> e
+        | x::xs ->            
+          let p,c = x
+          let e' = x :: e
           let seen' = seen.Add p
           let f'' = 
             Grid.validMovePointer {grid with searchPoint = Some p} 
-            |> List.fold (fun (f'': Map<Pos,int>) (a,s) ->
+            |> List.fold (fun (f'': (Pos * int) list) (a,s) ->
               let newP = s.searchPoint.Value
-              let isNew = not ((seen'.Contains newP) || (f''.ContainsKey newP))
-              let isCheaper = 
-                  match f''.TryFind newP with
-                  | Some n -> n > c+1
-                  | None -> false
-              if isNew || isCheaper 
-              then Map.add newP (c+1) f''
-              else f'') f'
+              if not (seen'.Contains newP) 
+              then f'' @ [(newP,c+1)]
+              else f'') xs
           loop f'' e' seen'
     loop f e seen
 
@@ -147,8 +143,9 @@ let solveGoal (goalPos, goal) prevH grid : Action list * Grid =
 
 let rec solveGoals actions prevH grid = function 
     | [] -> actions
-    | goal :: goals -> let actions', grid' = solveGoal goal prevH grid
-                       solveGoals (actions @ List.rev actions') prevH grid' goals 
+    | goal :: goals -> 
+      let actions', grid' = solveGoal goal prevH grid
+      solveGoals (actions @ List.rev actions') prevH grid' goals 
 
 let testGoalOrdering grid = 
     eprintfn "Ordering goals"
@@ -171,7 +168,7 @@ let rec readInput() =
 [<EntryPoint>]
 let main args =
     let lines = readInput ()
-    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAAnagram.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAsokobanLevel96.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SAMASters.lvl"))
     let grid = getGridFromLines (Seq.toList lines)
     testGoalOrdering grid |> ignore
