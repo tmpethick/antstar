@@ -14,6 +14,7 @@ let getId ((id,_,_): Box) = id
 let getBoxColor ((_,_,color): Box) = color
 
 let getAgentIdx (idx,_) = idx
+let getAgentColor (_,color) = color
 
 let defaultColor = Blue
 let defaultAgent: Agent = ('0', defaultColor)

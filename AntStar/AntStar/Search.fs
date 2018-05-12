@@ -72,19 +72,19 @@ type SearchQueue<'s,'a when 's: comparison> =
 type ISokobanProblem () =
    inherit Problem<Grid,Action>()
 
-type SokobanProblem (grid, goalPos, goal) = 
-    inherit ISokobanProblem()
+// type SokobanProblem (grid, goalPos, goal) = 
+//     inherit ISokobanProblem()
 
-    override p.Initial = {grid with desires = (FindBox(goalPos,goal) :: grid.desires); searchPoint = Some goalPos}
-    override p.Actions s = Grid.allValidActions s
-    override p.GoalTest s = s.desires.Head = IsGoal
-    override p.ChildNode n a s = 
-        let child = Grid.getChild n a s
-        printfn "%O" child.state 
-        child
-    override p.initialAction () = NOP
+//     override p.Initial = {grid with desires = (FindBox(goalPos,goal) :: grid.desires); searchPoint = Some goalPos}
+//     override p.Actions s = Grid.allValidActions s
+//     override p.GoalTest s = s.desires.Head = IsGoal
+//     override p.ChildNode n a s = 
+//         let child = Grid.getChild n a s
+//         printfn "%O" child.state 
+//         child
+//     override p.initialAction () = NOP
 
-    new(grid, goalPos, goal) = SokobanProblem (grid, goalPos, goal)
+//     new(grid, goalPos, goal) = SokobanProblem (grid, goalPos, goal)
 
 type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean) = 
     inherit ISokobanProblem()
@@ -96,7 +96,7 @@ type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean
     override p.ChildNode n a s = gridToNode n a s
     override p.initialAction () = NOP
 
-let boxGoalTest goal pointer s = Option.exists (isBoxOfType goal) (s.dynamicGrid.TryFind pointer)
+let boxGoalTest goal pointer s = s.dynamicGrid.TryFind pointer |> Option.exists (isBoxOfType goal)
 type BoxPointerProblem (grid, startPos, goal) =
     inherit PointerProblem(grid, startPos, boxGoalTest goal)
 
@@ -105,12 +105,16 @@ type AgentPointerProblem (grid, startPos, color) =
     inherit PointerProblem(grid, startPos, agentGoalTest color)
 
 let manhattanDistance p1 p2 = abs (fst p1 - fst p2) + abs (snd p1 - snd p2)
+let euclideanDistance (p1: Pos) (p2: Pos) = 
+    let e1 = (float (fst p1 - fst p2) ** 2.0)
+    let e2 = (float (snd p1 - snd p2) ** 2.0)
+    Math.Sqrt (e1 + e2) |> int
 type PosPointerProblem (grid, startPos, endPos) =
     inherit PointerProblem(grid, startPos, fun p -> fun _ -> p = endPos)
 
     override p.ChildNode n a s = 
       let child = gridToNode n a s
-      {child with value = child.cost + manhattanDistance child.state.searchPoint.Value endPos}
+      {child with value = child.cost + euclideanDistance child.state.searchPoint.Value endPos}
 
 
 let allGoalsMet (grid: Grid) = 
@@ -131,20 +135,19 @@ let rec retrieveSolution (n: Node<'s,'a>) =
 
 let graphSearch (p: ISokobanProblem) = 
     let initialEl = root p
-    let pathCost = 0
     let f = (SearchQueue<Grid,Action>.empty).Insert initialEl
     let e: Set<Grid> = Set.empty
     let rec loop (e: Set<Grid>) (f: SearchQueue<Grid,Action>) = 
-        let frontierStates = Map.map (fun s n -> n.state) f.m
+        // let frontierStates = Map.map (fun s n -> n.state) f.m
         // printfn "%O" frontierStates
-        // printfn "Size of explored: %O\n" e.Count
-        // printfn "Size of frontier: %O\n" f.Length
+        // eprintfn "Size of explored: %O\n" e.Count
         if f.IsEmpty
         then None
         else 
             let n, f' = f.Pop
             if p.GoalTest n.state
-            then Some (retrieveSolution n)
+            then 
+                Some (retrieveSolution n)
             else 
                 let e' = e.Add n.state
                 let f'' = p.Actions n.state |> List.fold (fun (f'': SearchQueue<Grid,Action>) (a,s) ->
@@ -183,6 +186,18 @@ let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoal
 
 let orderGoals grid unsolvedGoals = orderGoals' grid [] unsolvedGoals
 
+type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) = 
+    inherit ISokobanProblem()
+
+    override p.Initial = grid
+    override p.Actions s = Grid.validSokobanActions agentIdx s
+    override p.GoalTest s = goalTest agentIdx s
+    override p.ChildNode n a s = 
+      let child = gridToNode n a s
+      {child with value = child.cost}
+    override p.initialAction () = NOP
+
+
 type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid) =
     inherit ISokobanProblem()
 
@@ -200,7 +215,7 @@ type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: 
           |> fun x ->
             match x with
             | [] -> 0
-            | x::xs -> x.value
+            | x::xs -> x.cost
 
         let agentPos = Map.find agentIdx s.agentPos
         let agentProblem = 
@@ -210,7 +225,7 @@ type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: 
           |> fun x ->
             match x with
             | [] -> 0
-            | x::xs -> x.value
+            | x::xs -> x.cost
         let node = gridToNode n a s
         {node with value = node.cost + 10*boxProblem + 10*agentProblem}
         //{node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}

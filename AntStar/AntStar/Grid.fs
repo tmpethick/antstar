@@ -297,6 +297,7 @@ let rec parseColors colorMap = function
          | [|c;objList|]  -> 
             let colorMap' = 
               (objList.Split [|','|])
+              |> Array.map (fun s -> s.Trim ())
               |> Array.fold (fun s (o: string) -> 
                 Map.add (o.Chars(0)) (parseColor c) s
               ) colorMap
@@ -346,7 +347,6 @@ let parseMap colorMap (lines: list<int * string>) : Grid =
 //    | Some (Agent(aId, c')) -> 
 //      c = c'
 //  | _ -> false
-
 
 let rec getObstructions curDesire (n: Node<Grid,Action>) =
   match n.parent with
