@@ -60,6 +60,61 @@ let unWrap = function
 // filter obstacles
 // remove from path by recursive search
 
+let searchAllPositions grid startPos =
+    let f: Map<Pos,int> = Map.ofArray [|(startPos,0)|]
+    let e: (Pos * int) list = [] 
+    let seen: Set<Pos> = set [startPos]
+    let rec loop (f: Map<Pos,int>) (e: (Pos * int) list) (seen: Set<Pos>) = 
+        if f.IsEmpty then e else             
+          let p,c = Map.pick (fun p c -> Some (p,c)) f
+          let f' = Map.remove p f
+          let e' = (p,c) :: e
+          let seen' = seen.Add p
+          let f'' = 
+            Grid.validMovePointer {grid with searchPoint = Some p} 
+            |> List.fold (fun (f'': Map<Pos,int>) (a,s) ->
+              let newP = s.searchPoint.Value
+              let isNew = not ((seen'.Contains newP) || (f''.ContainsKey newP))
+              let isCheaper = 
+                  match f''.TryFind newP with
+                  | Some n -> n > c+1
+                  | None -> false
+              if isNew || isCheaper 
+              then Map.add newP (c+1) f''
+              else f'') f'
+          loop f'' e' seen'
+    loop f e seen
+
+let getPositions (grid: Grid) =
+  let agentPos =
+    grid.dynamicGrid
+    |> Map.filter (fun _ o ->
+      match o with
+      | Agent _ -> true
+      | _ -> false)
+    |> Map.toArray
+    |> Array.Parallel.map fst
+    |> Array.Parallel.map (fun p ->
+      searchAllPositions grid p
+      |> List.map fst
+      |> Set.ofList)
+    |> Set.unionMany
+    
+  
+  let rec getPos grid (positions: Set<Pos>) (acc: ((Pos * Pos) * int) list) =
+    if positions.IsEmpty then acc else
+    let p = Set.minElement positions
+    let positions' = Set.remove p positions
+    let e = 
+      searchAllPositions grid p
+      |> List.fold (fun ps (p',c) -> ((p,p'),c) :: ((p',p),c) :: ps) []
+    getPos grid positions' (e @ acc)
+  
+  getPos grid agentPos []
+  |> Map.ofList
+  
+
+
 let pickBox ((goalPos, gt): Pos * Goal) (grid: Grid): (Box * Pos) * Pos list = 
     // let grid' = grid
             //    |> Grid.removeAgents
@@ -136,24 +191,28 @@ let createClearPath (goalPos, goal) grid =
     eprintfn "%O" grid'
     box, agent, (grid', actions)
 
-let solveGoal (goalPos, goal) grid : Action list * Grid = 
-        eprintfn "Solving goal %O" goal
-        let box, agent, (grid', actions) = createClearPath (goalPos, goal) grid
 
-        match AStarSokobanProblem (goalPos, getId box, getAgentIdx agent, grid') |> graphSearch with
+let solveGoal (goalPos, goal) prevH grid : Action list * Grid = 
+        let box, agent, (grid', actions) = createClearPath (goalPos, goal) grid
+        match AStarSokobanProblem (goalPos, getId box, getAgentIdx agent, grid, prevH) |> graphSearch with
         | Some solution -> 
             let state = solution.Head.state.AddWall goalPos
             actions @ (List.map (fun n -> n.action) solution), state
         | None -> failwith "come on"
 
-let rec solveGoals actions grid = function 
+let rec solveGoals actions prevH grid = function 
     | [] -> actions
-    | goal :: goals -> let actions', grid' = solveGoal goal grid
-                       solveGoals (actions @ List.rev actions') grid' goals 
+    | goal :: goals -> let actions', grid' = solveGoal goal prevH grid
+                       solveGoals (actions @ List.rev actions') prevH grid' goals 
 
 let testGoalOrdering grid = 
+    eprintfn "Ordering goals"
     let goals = orderGoals grid (Set.ofList (getGoals grid))
-    solveGoals [] grid goals |> toOutput |> printOutput
+    eprintfn "Goal order: %s" (goals |> List.map snd |> List.map (fun x -> string x) |> String.concat ",") 
+    eprintfn "Precomputing h values"
+    let prevH = getPositions grid
+    eprintfn "Solving goals"
+    solveGoals [] prevH grid goals |> toOutput |> printOutput
 
 let isOfTypeIfBox gt d = (((not << isBox) d) || (isBoxOfType gt d))
 
@@ -168,6 +227,8 @@ let rec readInput() =
 let main args =
     // let lines = readInput ()
     let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels/testlevels/","MAAgentObstacle.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAAnagram.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SAMASters.lvl"))
     let grid = getGridFromLines (Seq.toList lines)
     testGoalOrdering grid |> ignore
     0
