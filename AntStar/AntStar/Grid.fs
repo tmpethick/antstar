@@ -29,20 +29,31 @@ type Grid     = {
               |> toLine)
           |> flatten
 
-        static member PosToString (g: Grid) ((i,j): Pos): String = 
+        static member GridToColoredStringTransformer (f: Grid -> Pos -> ColoredString) (g: Grid): ColoredString [] [] = 
+          [|0..g.height-1|]
+          |> Array.map (fun j -> 
+              [|0..g.width-1|]
+              |> Array.map (fun i -> f g (i,j)))
+
+        static member PosToString (g: Grid) ((i,j): Pos): String * ConsoleColor = 
           if Option.exists ((=) (i,j)) g.searchPoint
-          then "O"
+          then "O", ConsoleColor.Black
           else
             match Map.find (i,j) g.dynamicGrid with
-            | Agent (t, _) -> t.ToString()
-            | Wall         -> "+"
-            | Box (id,t, _)-> t.ToString().ToUpper()
+            | Agent (t, c) -> t.ToString(), toConsoleColor c
+            | Wall         -> "+", ConsoleColor.Black
+            | Box (id,t, c)-> t.ToString().ToUpper(), toConsoleColor c
             | DEmpty       -> 
               match Map.find (i,j) g.staticGrid with
-              | Goal t -> t.ToString().ToLower()
-              | SEmpty -> " "
+              | Goal t -> t.ToString().ToLower(), ConsoleColor.Black
+              | SEmpty -> " ", ConsoleColor.Black
 
-        override g.ToString() = Grid.GridToStringTransformer (Grid.PosToString) g
+        static member PosToColoredString g p = 
+          let s, c = Grid.PosToString g p
+          {text = s; color = c; background = ConsoleColor.White}
+
+        override g.ToString() = Grid.GridToStringTransformer (fun g -> Grid.PosToString g >> fst) g
+        member g.toColorRep = Grid.GridToColoredStringTransformer (Grid.PosToColoredString) g
         member g.AddWall corr = 
           { g with dynamicGrid = g.dynamicGrid |> Map.add corr Wall }
         member g.AddBox corr (box: Box) = 
@@ -373,7 +384,7 @@ let rec getPositions curDesire positions (n: Node<Grid,Action>) =
  
  
 // No heurstics
-let gridToNode (n: Node<Grid,Action []>) a s = 
+let gridToNode (n: Node<Grid,Action []>) a s =
   let cost = n.cost + 1
   { n with state = s; cost = cost; value = cost; action = a; parent = Some n; }
 

@@ -11,6 +11,7 @@ type StaticObject  = Goal of Goal | SEmpty
 type DynamicObject = Agent of Agent | Box of Box | Wall | DEmpty
 
 let getId ((id,_,_): Box) = id
+let getType ((_,t,_): Box) = t
 let getBoxColor ((_,_,color): Box) = color
 
 let getAgentIdx (idx,_) = idx
@@ -99,3 +100,38 @@ type Node<'s,'a> = {
        | :? Node<'s,'a> as y -> x.value = y.value
        | _ -> false
     override x.GetHashCode() = x.value // TODO: 
+
+type ColoredString = {text: String; background: ConsoleColor; color: ConsoleColor;}
+
+type ColoredLines = ColoredString [] []
+
+let toConsoleColor = function 
+  | Blue    -> ConsoleColor.Blue
+  | Red     -> ConsoleColor.Red
+  | Green   -> ConsoleColor.Green
+  | Cyan    -> ConsoleColor.Cyan
+  | Magenta -> ConsoleColor.Magenta
+  | Orange  -> ConsoleColor.DarkMagenta
+  | Pink    -> ConsoleColor.DarkYellow
+  | Yellow  -> ConsoleColor.Yellow
+
+// From https://blogs.msdn.microsoft.com/chrsmith/2008/10/01/f-zen-colored-printf/
+let cprintf c bg fmt = 
+    Printf.kprintf
+        (fun s ->
+            let oldBg = System.Console.BackgroundColor
+            let oldColor = System.Console.ForegroundColor
+            try
+              System.Console.ForegroundColor <- c;
+              System.Console.BackgroundColor <- bg;
+              System.Console.Error.Write s
+            finally
+              System.Console.ForegroundColor <- oldColor
+              System.Console.BackgroundColor <- oldBg)
+        fmt
+
+let cprintLines (coloredLines: ColoredLines): unit =
+  coloredLines 
+  |> Array.iter (fun lines -> 
+      lines |> Array.iter (fun line -> cprintf line.color line.background "%O" line.text)
+      eprintfn "")

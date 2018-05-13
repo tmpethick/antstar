@@ -79,7 +79,18 @@ type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean
     override p.GoalTest s = match s.searchPoint with 
                             | Some pointer -> goalTest pointer s
                             | None -> false
-    override p.ChildNode n a s = gridToNode n a s
+    override p.ChildNode n a s = 
+        let n' = gridToNode n a s
+        let additionCost = 
+            match s.searchPoint with 
+            | None -> 0
+            | Some pointer -> 
+                match Map.find pointer s.dynamicGrid with
+                | Agent _ -> 3
+                | Box _ -> 10
+                | _ -> 0
+        { n' with cost = n'.cost + additionCost; value = n'.value + additionCost }
+        
     override p.initialAction () = [|NOP|]
 
 let boxGoalTest goal pointer s = s.dynamicGrid.TryFind pointer |> Option.exists (isBoxOfType goal)
@@ -209,7 +220,12 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
     new (goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>) = 
         let goalTest _ s = 
             let boxPos = Map.find boxGuid s.boxPos
-            goalPos = boxPos
+            let agentPos = Map.find agentIdx s.agentPos
+            let onGoal = 
+                match Map.find agentPos s.staticGrid with
+                | Goal _ -> true
+                | _ -> false
+            (goalPos = boxPos) && not onGoal
         let heuristicTransformer boxPos h = 
             let boxH = Map.find (goalPos,boxPos) prevHValues
             h + boxH

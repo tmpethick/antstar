@@ -159,10 +159,11 @@ let getActionsAndResultingState (solution: Node<Grid,Action []> list) =
     List.rev (List.map (fun n -> n.action) solution), solution.Head.state
 
 let formatPositions (g: Grid) (points: Set<Pos>) = 
-    Grid.GridToStringTransformer (fun g (i,j) ->
+    Grid.GridToColoredStringTransformer (fun g (i,j) ->
+        let char = Grid.PosToColoredString g (i,j)
         if points.Contains (i,j) 
-        then "*" 
-        else Grid.PosToString g (i,j)) g
+        then {char with background = ConsoleColor.Gray;}
+        else char) g
     
 let formatPath (g: Grid) (path: Pos list) = Set.ofList path |> formatPositions g
 
@@ -178,14 +179,17 @@ let rec solveObstacle prevH (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) =
             let boxPos = Map.find (getId box) s.boxPos
             goalPositions.Contains agentPos && goalPositions.Contains boxPos
 
-        eprintfn "Removing box: %O" boxPos
-        eprintfn "Free positions:"
-        formatPositions state goalPositions |> eprintfn "%O"
+        let boxType = (getType box).ToString().ToUpper()
+        eprintfn "Solving obstacle %O at %O" boxType boxPos
+        // eprintfn "Removing box: %O" boxPos
+        // eprintfn "Free positions:"
+        formatPositions state goalPositions |> cprintLines
         let box, agent, (grid', actions) = createClearPathFromBox prevH (box, boxPos) [] state
         match new AStarSokobanProblem (getId box, getAgentIdx agent, grid', prevH, goalTest) |> graphSearch with
         | Some solution -> getActionsAndResultingState solution
         | None -> failwith "come on"
     | Agent a -> 
+        eprintfn "Solving obstacle %O at %O" (getAgentIdx a) pos
         let goalTest agentIdx s = 
             let agentPos = Map.find agentIdx s.agentPos
             goalPositions.Contains agentPos
@@ -202,8 +206,8 @@ and createClearPathFromBox prevH (box, boxPos) goalPath grid =
     let solutionSet = Set.ofList solutionPath
     
     eprintfn "Path to be cleared:"
-    formatPath grid solutionPath |> eprintfn "%O"
-    eprintfn "Picked agent: %O" (getAgentIdx agent)
+    formatPath grid solutionPath |> cprintLines
+    // eprintfn "Picked agent: %O" (getAgentIdx agent)
 
     let rec clearPath gridAcc solutionAcc = 
         match getObstacleFromPath (getAgentColor agent) gridAcc solutionPath with
@@ -213,15 +217,12 @@ and createClearPathFromBox prevH (box, boxPos) goalPath grid =
         | None -> 
             gridAcc, solutionAcc
     let grid', actions = clearPath grid []
-    // eprintfn "%O" grid'
-    // eprintfn "%A" (toOutput actions)
     box, agent, (grid', actions)
 
 and createClearPath prevH (goalPos, goal) grid = 
     // eprintfn "createClearPath: %O\n" (goalPos, goal, grid)
     let (box, boxPos), goalPath = pickBox (goalPos, goal) grid
-    eprintfn "Solving goal: %O" goal
-    eprintfn "Picked box at: %O" boxPos
+    // eprintfn "Picked box at: %O" boxPos
     createClearPathFromBox prevH (box, boxPos) goalPath grid
 
 // Clear path
@@ -232,6 +233,7 @@ and createClearPath prevH (goalPos, goal) grid =
 // 
 
 let solveGoal (goalPos, goal) prevH grid : Action [] list * Grid = 
+        eprintfn "solving goal %O:" goal
         let box, agent, (grid', actions) = createClearPath prevH (goalPos, goal) grid
         match new AStarSokobanProblem (goalPos, getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
         | Some solution -> 
@@ -243,7 +245,6 @@ let rec solveGoals actions prevH grid = function
     | [] -> actions
     | goal :: goals -> 
         let actions', grid' = solveGoal goal prevH grid
-        eprintfn "solved goal %O:\n%O" goal grid'
         solveGoals (actions @ actions') prevH grid' goals 
 
 let testGoalOrdering grid = 
