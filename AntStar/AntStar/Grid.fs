@@ -53,7 +53,7 @@ type Grid     = {
           {text = s; color = c; background = ConsoleColor.White}
 
         override g.ToString() = Grid.GridToStringTransformer (fun g -> Grid.PosToString g >> fst) g
-        member g.toColorRep = Grid.GridToColoredStringTransformer (Grid.PosToColoredString) g
+        member g.ToColorRep() = Grid.GridToColoredStringTransformer (Grid.PosToColoredString) g
         member g.AddWall corr = 
           { g with dynamicGrid = g.dynamicGrid |> Map.add corr Wall }
         member g.AddBox corr (box: Box) = 

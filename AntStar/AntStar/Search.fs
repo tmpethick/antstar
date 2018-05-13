@@ -142,6 +142,7 @@ let graphSearch (p: ISokobanProblem) =
         then None
         else 
             let n, f' = f.Pop
+            // n.state.ToColorRep() |> cprintLines
             if p.GoalTest n.state
             then 
                 Some (retrieveSolution n)
@@ -211,14 +212,14 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
         let agentPos = Map.find agentIdx s.agentPos
         let agentH = Map.find (boxPos,agentPos) prevHValues
         let node = gridToNode n a s
-        let h = 10*agentH
+        let h = 8*agentH
         {node with value = node.cost + heuristicTransformer boxPos h }
         //{node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}
     override p.initialAction () = Array.create numAgents NOP
 
     /// Heuristic search with goal.
     new (goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>) = 
-        let goalTest _ s = 
+        let goalTest agentIdx s = 
             let boxPos = Map.find boxGuid s.boxPos
             let agentPos = Map.find agentIdx s.agentPos
             let onGoal = 
@@ -228,7 +229,7 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
             (goalPos = boxPos) && not onGoal
         let heuristicTransformer boxPos h = 
             let boxH = Map.find (goalPos,boxPos) prevHValues
-            h + boxH
+            h + 10*boxH
         AStarSokobanProblem (boxGuid, agentIdx, grid, prevHValues, goalTest, heuristicTransformer)
 
     /// Heuristic search without goal.
