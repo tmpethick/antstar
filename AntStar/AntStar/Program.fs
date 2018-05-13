@@ -163,31 +163,57 @@ let freePos (state: Grid): Set<Pos> =
 let getActionsAndResultingState (solution: Node<Grid,Action []> list) = 
     List.rev (List.map (fun n -> n.action) solution), solution.Head.state
 
-let solveObstacle (pos: Pos) (state: Grid) = 
-    let goalPositions = freePos state
-    let goalTest agentIdx s = let agentPos = Map.find agentIdx s.agentPos
-                              goalPositions.Contains agentPos
+let formatPositions (g: Grid) (points: Set<Pos>) = 
+    Grid.GridToStringTransformer (fun g (i,j) ->
+        if points.Contains (i,j) 
+        then "*" 
+        else Grid.PosToString g (i,j)) g
+    
+let formatPath (g: Grid) (path: Pos list) = Set.ofList path |> formatPositions g
+
+let rec solveObstacle prevH (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) = 
+    let free = freePos state
+    let goalPositions = Set.intersect free reservedPath
+                        |> Set.difference free
     match Map.find pos state.dynamicGrid with
-    // | Box _ -> 
-    // TODO: solve goal with obstacles..
-    | Agent a -> BFSSokobanProblem (getAgentIdx a, state, goalTest) 
+    | Box box -> 
+        let boxPos = pos
+        let goalTest agentIdx s = 
+            let agentPos = Map.find agentIdx s.agentPos
+            let boxPos = Map.find (getId box) s.boxPos
+            goalPositions.Contains agentPos && goalPositions.Contains boxPos
+
+        eprintfn "Removing box: %O" boxPos
+        eprintfn "Free positions:"
+        formatPositions state goalPositions |> eprintfn "%O"
+        let box, agent, (grid', actions) = createClearPathFromBox prevH (box, boxPos) [] state
+        match new AStarSokobanProblem (getId box, getAgentIdx agent, grid', prevH, goalTest) |> graphSearch with
+        | Some solution -> getActionsAndResultingState solution
+        | None -> failwith "come on"
+    | Agent a -> 
+        let goalTest agentIdx s = 
+            let agentPos = Map.find agentIdx s.agentPos
+            goalPositions.Contains agentPos
+        BFSSokobanProblem (getAgentIdx a, state, goalTest) 
                  |> graphSearch
                  |> Option.get
                  |> getActionsAndResultingState
     | _ -> failwith "Pos should contain Box or Agent obstacle"
 
 // boxPos and agentPos might change during the recursion.. which is not intended
-let createClearPath (goalPos, goal) grid = 
-    eprintfn "createClearPath: %O\n" (goalPos, goal, grid)
-    let (box, boxPos), goalPath = pickBox (goalPos, goal) grid
+and createClearPathFromBox prevH (box, boxPos) goalPath grid = 
     let (agent, agentPos), boxPath = pickAgent (boxPos, getBoxColor box) grid
-    let solutionPath = boxPath @ goalPath
-                       |> List.tail // Drop Agent pos
+    let solutionPath = boxPath @ goalPath |> List.tail // Drops Agent pos
+    let solutionSet = Set.ofList solutionPath
+    
+    eprintfn "Path to be cleared:"
+    formatPath grid solutionPath |> eprintfn "%O"
+    eprintfn "Picked agent: %O" (getAgentIdx agent)
 
     let rec clearPath gridAcc solutionAcc = 
         match getObstacleFromPath (getAgentColor agent) gridAcc solutionPath with
         | Some obstacle -> 
-            let obsActionSolution, gridAcc' = solveObstacle obstacle gridAcc
+            let obsActionSolution, gridAcc' = solveObstacle prevH (solutionSet) obstacle gridAcc
             clearPath gridAcc' (solutionAcc @ obsActionSolution)
         | None -> 
             gridAcc, solutionAcc
@@ -196,10 +222,23 @@ let createClearPath (goalPos, goal) grid =
     // eprintfn "%A" (toOutput actions)
     box, agent, (grid', actions)
 
+and createClearPath prevH (goalPos, goal) grid = 
+    // eprintfn "createClearPath: %O\n" (goalPos, goal, grid)
+    let (box, boxPos), goalPath = pickBox (goalPos, goal) grid
+    eprintfn "Solving goal: %O" goal
+    eprintfn "Picked box at: %O" boxPos
+    createClearPathFromBox prevH (box, boxPos) goalPath grid
+
+// Clear path
+// Add cost to box on path in PointerSearch
+// Generalize multiagent clearPath to singleagent
+// Fix all pairs shortest path preprocessing
+// Merge multiagent
+// 
 
 let solveGoal (goalPos, goal) prevH grid : Action [] list * Grid = 
-        let box, agent, (grid', actions) = createClearPath (goalPos, goal) grid
-        match AStarSokobanProblem (goalPos, getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
+        let box, agent, (grid', actions) = createClearPath prevH (goalPos, goal) grid
+        match new AStarSokobanProblem (goalPos, getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
         | Some solution -> 
             let state = solution.Head.state.AddWall goalPos
             actions @ List.rev (List.map (fun n -> n.action) solution), state
@@ -209,6 +248,7 @@ let rec solveGoals actions prevH grid = function
     | [] -> actions
     | goal :: goals -> 
         let actions', grid' = solveGoal goal prevH grid
+        eprintfn "solved goal %O:\n%O" goal grid'
         solveGoals (actions @ actions') prevH grid' goals 
 
 let testGoalOrdering grid = 
@@ -231,8 +271,8 @@ let rec readInput() =
 
 [<EntryPoint>]
 let main args =
-    // let lines = readInput ()
-    let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels/testlevels/","MAAgentObstacle.lvl"))
+    let lines = readInput ()
+    // let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels/testlevels/","MAAgentBoxObstacle.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAAnagram.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAsokobanLevel96.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SAMASters.lvl"))

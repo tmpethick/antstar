@@ -4,8 +4,13 @@ open System.Text.RegularExpressions
 open System
 open Domain
 
-
-
+[<Interface>]
+type IGrid =
+  abstract width : int with get
+  abstract height : int with get
+  abstract staticGrid  : StaticGrid with get
+  abstract dynamicGrid : DynamicGrid with get
+  abstract searchPoint : Pos option with get
 
 type Grid     = { 
     staticGrid  : StaticGrid 
@@ -16,25 +21,28 @@ type Grid     = {
     searchPoint : Pos option
     width  : int
     height : int } with 
-        override g.ToString() = 
+        static member GridToStringTransformer (f: Grid -> Pos -> String) (g: Grid): String = 
           [0..g.height-1]
           |> List.map (fun j -> 
               [0..g.width-1]
-              |> List.map (fun i -> 
-                  if Option.exists ((=) (i,j)) g.searchPoint
-                  then "O"
-                  else
-                    match Map.find (i,j) g.dynamicGrid with
-                    | Agent (t, _) -> t.ToString()
-                    | Wall         -> "+"
-                    | Box (id,t, _)-> t.ToString().ToUpper()
-                    | DEmpty       -> 
-                      match Map.find (i,j) g.staticGrid with
-                      | Goal t -> t.ToString().ToLower()
-                      | SEmpty -> " ") 
-              |> toLine) 
+              |> List.map (fun i -> f g (i,j)) 
+              |> toLine)
           |> flatten
-        
+
+        static member PosToString (g: Grid) ((i,j): Pos): String = 
+          if Option.exists ((=) (i,j)) g.searchPoint
+          then "O"
+          else
+            match Map.find (i,j) g.dynamicGrid with
+            | Agent (t, _) -> t.ToString()
+            | Wall         -> "+"
+            | Box (id,t, _)-> t.ToString().ToUpper()
+            | DEmpty       -> 
+              match Map.find (i,j) g.staticGrid with
+              | Goal t -> t.ToString().ToLower()
+              | SEmpty -> " "
+
+        override g.ToString() = Grid.GridToStringTransformer (Grid.PosToString) g
         member g.AddWall corr = 
           { g with dynamicGrid = g.dynamicGrid |> Map.add corr Wall }
         member g.AddBox corr (box: Box) = 
@@ -105,7 +113,6 @@ type Grid     = {
         static member inline filterAgents predicate (g: Grid) = g.FilterAgents predicate
         static member inline addAgent pos agent (g:Grid) = g.AddAgent pos agent
         static member inline removeAgents (g: Grid) = g.RemoveAgents ()
-
 
 let emptyGrid w h = 
     let coords = cartesian [0..w-1] [0..h-1]

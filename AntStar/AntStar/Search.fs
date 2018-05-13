@@ -185,22 +185,36 @@ type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) =
       {child with value = child.cost}
     override p.initialAction () = Array.create numAgents NOP
 
-type AStarSokobanProblem(goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>) = 
+// AStarSokobanProblem(boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest)
+type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest, heuristicTransformer) =
     inherit ISokobanProblem()
 
     let numAgents = grid.agentPos.Count
     override p.Initial = grid
     override p.Actions s = Grid.validSokobanActions numAgents agentIdx s
-    override p.GoalTest s = let boxPos = Map.find boxGuid s.boxPos
-                            goalPos = boxPos
+    override p.GoalTest s = goalTest agentIdx s
                             
     override p.ChildNode n a s = 
         let boxPos = Map.find boxGuid s.boxPos
-        let boxH = Map.find (goalPos,boxPos) prevHValues
 
         let agentPos = Map.find agentIdx s.agentPos
         let agentH = Map.find (boxPos,agentPos) prevHValues
         let node = gridToNode n a s
-        {node with value = node.cost + 10*boxH + 10*agentH}
+        let h = 10*agentH
+        {node with value = node.cost + heuristicTransformer boxPos h }
         //{node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}
     override p.initialAction () = Array.create numAgents NOP
+
+    /// Heuristic search with goal.
+    new (goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>) = 
+        let goalTest _ s = 
+            let boxPos = Map.find boxGuid s.boxPos
+            goalPos = boxPos
+        let heuristicTransformer boxPos h = 
+            let boxH = Map.find (goalPos,boxPos) prevHValues
+            h + boxH
+        AStarSokobanProblem (boxGuid, agentIdx, grid, prevHValues, goalTest, heuristicTransformer)
+
+    /// Heuristic search without goal.
+    new (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest) =
+        AStarSokobanProblem (boxGuid, agentIdx, grid, prevHValues, goalTest, fun _ h -> h)
