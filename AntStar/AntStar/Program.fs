@@ -5,6 +5,7 @@ open System.IO
 open Domain
 open Grid
 open Search
+open System.Collections.Generic
 
 let convertAction = function
     | NOP            -> "NoOp" |> Some 
@@ -68,55 +69,49 @@ let unWrap = function
 // remove from path by recursive search
 
 let searchAllPositions grid startPos =
-    let f: (Pos * int) list = [(startPos,0)]
-    let e: (Pos * int) list = [] 
-    let seen: Set<Pos> = set [startPos]
-    let rec loop (f: (Pos * int) list) (e: (Pos * int) list) (seen: Set<Pos>) = 
-        match f with
-        | [] -> e
-        | x::xs ->            
-          let p,c = x
-          let e' = x :: e
-          let seen' = seen.Add p
-          let f'' = 
-            Grid.validMovePointer {grid with searchPoint = Some p} 
-            |> List.fold (fun (f'': (Pos * int) list) (a,s) ->
-              let newP = s.searchPoint.Value
-              if not (seen'.Contains newP) 
-              then f'' @ [(newP,c+1)]
-              else f'') xs
-          loop f'' e' seen'
-    loop f e seen
+  let fs,fq: Set<Pos> * Queue<Pos * int> = set [startPos], new Queue<Pos * int>()
+  fq.Enqueue((startPos,0))
+  let e: (Pos * int) list = [] 
+  let seen: Set<Pos> = set [startPos]
+  let rec loop (fs: Set<Pos>) (e: (Pos * int) list) (seen: Set<Pos>) = 
+    if fs.IsEmpty then e else          
+      let p,c = fq.Dequeue()
+      let fs' = fs.Remove(p)
+      let e' = (p,c) :: e
+      let seen' = seen.Add p
+      let fs'' =
+        Grid.validMovePointer {grid with searchPoint = Some p} 
+        |> List.fold (fun (fs'': Set<Pos>) (a,s) ->
+          let newP = s.searchPoint.Value
+          if not (seen'.Contains newP || fs''.Contains newP) 
+          then 
+            fq.Enqueue((newP,c+1))
+            Set.add newP fs''
+          else fs'') fs'
+      loop fs'' e' seen'
+  loop fs e seen
 
 let getPositions (grid: Grid) =
-  let agentPos =
-    grid.dynamicGrid
-    |> Map.filter (fun _ o ->
-      match o with
-      | Agent _ -> true
-      | _ -> false)
-    |> Map.toArray
-    |> Array.Parallel.map fst
-    |> Array.Parallel.map (fun p ->
-      searchAllPositions grid p
-      |> List.map fst
-      |> Set.ofList)
-    |> Set.unionMany
-    
+  grid.dynamicGrid
+  |> Map.toArray
+  |> Array.filter (fun (_, o) ->
+    match o with
+    | Agent _ -> true
+    | _ -> false)
+  |> Array.Parallel.map fst
+  |> fun x -> eprintfn "%i" x.Length; x
+  |> Array.Parallel.collect (fun p ->
+    searchAllPositions grid p
+    |> List.toArray
+    |> Array.Parallel.map fst)
+  |> Array.distinct
+  |> Array.Parallel.collect (fun p ->
+    searchAllPositions grid p
+    |> List.toArray
+    |> Array.Parallel.collect (fun (p',c) -> [|((p,p'),c);((p',p),c)|])
+  )
+  |> Map.ofArray
   
-  let rec getPos grid (positions: Set<Pos>) (acc: ((Pos * Pos) * int) list) =
-    if positions.IsEmpty then acc else
-    let p = Set.minElement positions
-    let positions' = Set.remove p positions
-    let e = 
-      searchAllPositions grid p
-      |> List.fold (fun ps (p',c) -> ((p,p'),c) :: ((p',p),c) :: ps) []
-    getPos grid positions' (e @ acc)
-  
-  getPos grid agentPos []
-  |> Map.ofList
-  
-
 
 let pickBox ((goalPos, gt): Pos * Goal) (grid: Grid): (Box * Pos) * Pos list = 
     // let grid' = grid
@@ -275,7 +270,7 @@ let main args =
     // let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels/testlevels/","MAAgentBoxObstacle.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAAnagram.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAsokobanLevel96.lvl"))
-    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SAMASters.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SABlinky.lvl"))
     let grid = getGridFromLines (Seq.toList lines)
     testGoalOrdering grid |> ignore
     0
