@@ -169,19 +169,20 @@ let formatPath (g: Grid) (path: Pos list) = Set.ofList path |> formatPositions g
 
 let rec solveObstacle prevH (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) = 
     let free = freePos state
-    let goalPositions = Set.intersect free reservedPath
+    let freePositions = Set.intersect free reservedPath
                         |> Set.difference free
     match Map.find pos state.dynamicGrid with
     | Box box -> 
         let boxPos = pos
-        let goalTest agentIdx s = 
-            let agentPos = Map.find agentIdx s.agentPos
-            let boxPos = Map.find (getId box) s.boxPos
-            goalPositions.Contains agentPos && goalPositions.Contains boxPos
 
         let boxType = (getType box).ToString().ToUpper()
         eprintfn "Solving obstacle %O at %O" boxType boxPos
-        formatPositions state goalPositions |> cprintLines
+        formatPositions state freePositions |> cprintLines
+
+        let goalTest agentIdx s = 
+            let agentPos = Map.find agentIdx s.agentPos
+            let boxPos = Map.find (getId box) s.boxPos
+            freePositions.Contains agentPos && freePositions.Contains boxPos
 
         let box, agent, (grid', actions) = createClearPathFromBox prevH (box, boxPos) [] state
         match new AStarSokobanProblem (getId box, getAgentIdx agent, grid', prevH, goalTest) |> graphSearch with
@@ -192,7 +193,7 @@ let rec solveObstacle prevH (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) =
     | Agent a -> 
         // TODO: clear agent path with createClearPathFromBox
         eprintfn "Solving obstacle %O at %O" (getAgentIdx a) pos
-        formatPositions state goalPositions |> cprintLines
+        formatPositions state freePositions |> cprintLines
 
         let goalTest agentIdx s = 
             let agentPos = Map.find agentIdx s.agentPos
@@ -200,34 +201,57 @@ let rec solveObstacle prevH (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) =
                 match Map.find agentPos s.staticGrid with
                 | Goal _ -> true
                 | _ -> false
-            goalPositions.Contains agentPos && not onGoal
+            freePositions.Contains agentPos && not onGoal
             
-        BFSSokobanProblem (getAgentIdx a, state, goalTest) 
-                 |> graphSearch
-                 |> Option.get
-                 |> getActionsAndResultingState
+        let grid', actions = createClearPathForAgent prevH a freePositions state
+        eprintfn "Solving obstacle %O at %O now cleared" (getAgentIdx a) pos
+        formatPositions grid' freePositions |> cprintLines
+
+        let acts, grid'' = 
+            BFSSokobanProblem (getAgentIdx a, grid', goalTest) 
+            |> graphSearch
+            |> Option.get
+            |> getActionsAndResultingState
+        actions @ acts, grid''
+
     | _ -> failwith "Pos should contain Box or Agent obstacle"
+
+and createClearPathForAgent prevH agent freeSpots grid =
+    let agentPos = Map.find (getAgentIdx agent) grid.agentPos
+    let agentPath = 
+        match FreeSpotPointerProblem (grid, agentPos, freeSpots) |> graphSearch with
+        | Some s -> List.map (fun n -> n.state.searchPoint.Value) s |> List.tail
+        | None -> failwith "could not clear agent"
+
+    eprintfn "Path to be cleared:"
+    formatPath grid agentPath |> cprintLines
+
+    clearPath prevH agent agentPath grid
+    
+and clearPath prevH agent solutionPath grid =
+    let solutionSet = Set.ofList solutionPath
+    let rec clearPath' gridAcc solutionAcc = 
+        match getObstacleFromPath (getAgentColor agent) gridAcc solutionPath with
+        | Some obstacle -> 
+            eprintfn "Trying to remove obstacle %O" obstacle
+            let obsActionSolution, gridAcc' = solveObstacle prevH (solutionSet) obstacle gridAcc
+            eprintfn "After removing obstacle"
+            gridAcc'.ToColorRep() |> cprintLines
+            clearPath' gridAcc' (solutionAcc @ obsActionSolution)
+        | None -> 
+            gridAcc, solutionAcc
+    clearPath' grid []
 
 // boxPos and agentPos might change during the recursion.. which is not intended
 and createClearPathFromBox prevH (box, boxPos) goalPath grid = 
     let (agent, agentPos), boxPath = pickAgent (boxPos, getBoxColor box) grid
     let solutionPath = boxPath @ goalPath |> List.tail // Drops Agent pos
-    let solutionSet = Set.ofList solutionPath
     
     eprintfn "Path to be cleared:"
     formatPath grid solutionPath |> cprintLines
     // eprintfn "Picked agent: %O" (getAgentIdx agent)
 
-    let rec clearPath gridAcc solutionAcc = 
-        match getObstacleFromPath (getAgentColor agent) gridAcc solutionPath with
-        | Some obstacle -> 
-            let obsActionSolution, gridAcc' = solveObstacle prevH (solutionSet) obstacle gridAcc
-            eprintfn "After removing obstacle"
-            gridAcc'.ToColorRep() |> cprintLines
-            clearPath gridAcc' (solutionAcc @ obsActionSolution)
-        | None -> 
-            gridAcc, solutionAcc
-    let grid', actions = clearPath grid []
+    let grid', actions = clearPath prevH agent solutionPath grid
     box, agent, (grid', actions)
 
 and createClearPath prevH (goalPos, goal) grid = 

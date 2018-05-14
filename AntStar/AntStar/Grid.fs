@@ -184,9 +184,9 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
         | Some (Box(_,_,c)),Some DEmpty when c=c' -> 
             grid.MoveBox newAPos newBPos
            |?> fun grid' -> Success (grid'.MoveAgent a newAPos)
-        | Some (Box(_,_,_)),Some DEmpty           -> Error ColorMismatch
-        | Some (Box(_,_,_)),_                     -> Error PositionOccupied
-        | _,_                                   -> Error NotAssociatedObject
+        | Some (Box(_)),Some DEmpty           -> Error ColorMismatch
+        | Some (Box(_)),_                     -> Error PositionOccupied
+        | _,_                                 -> Error NotAssociatedObject
   | Pull(a,ad,bd) ->
     match Map.tryFind a grid.agentPos with
     | None   -> Error AgentNotOnMap
@@ -200,19 +200,18 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
         | Some DEmpty, Some (Box(_,_,c)) when c=c' ->
           grid.MoveAgent a newAPos
           |> fun grid' -> (grid'.MoveBox curBPos curAPos)
-        | Some DEmpty, Some (Box(_,_,_))           -> Error ColorMismatch
-        | _, Some (Box(_,_,_))                     -> Error PositionOccupied
-        | _,_                                    -> Error NotAssociatedObject
+        | Some DEmpty, Some (Box(_))           -> Error ColorMismatch
+        | _, Some (Box(_))                     -> Error PositionOccupied
+        | _,_                                  -> Error NotAssociatedObject
 
 
 let filterValidActions grid actions = 
   actions
   |> List.toArray
-  |> Array.map (fun a -> a,apply a grid)
-  |> Array.map (fun (a,c) -> 
-        match c with 
-        | Success s -> Some(a,s) 
-        | Error _   -> None)
+  |> Array.map (fun a -> 
+      match apply a grid with 
+      | Success s -> Some(a,s) 
+      | Error _   -> None)
   |> Array.filter Option.isSome
   |> Array.map Option.get
   |> Array.toList
