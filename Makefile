@@ -6,3 +6,9 @@ runonfile:
 testonserver:
 	MSBuild AntStar/AntStar/AntStar.fsproj /p:Configuration=Release;Targets=Clean
 	java -jar environment/server.jar -g 300 -c"dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll" -l AntStar/AntStar/levels/testlevels/competition_levelsSP17/MAAIoliMAsh.lvl
+
+runSAtests:
+	./antstar.sh AntStar/AntStar/levels/testlevels/competition_levelsSP17/SA*.lvl
+
+runMAtests:
+	./antstar.sh AntStar/AntStar/levels/testlevels/competition_levelsSP17/MA*.lvl
