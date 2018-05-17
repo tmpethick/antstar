@@ -73,6 +73,16 @@ type SearchQueue<'s,'a when 's: comparison> =
 type ISokobanProblem () =
    inherit Problem<Grid,Action []>()
 
+let additionalCost s = 
+            match s.searchPoint with 
+            | None -> 0
+            | Some pointer -> 
+                match Map.find pointer s.dynamicGrid with
+                | Agent _ -> 3
+                | Box _ -> 10
+                | _ -> 0
+
+
 type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean) = 
     inherit ISokobanProblem()
     override p.Initial = {grid with searchPoint = Some startPos }
@@ -82,17 +92,9 @@ type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean
                             | None -> false
     override p.ChildNode n a s = 
         let n' = gridToNode n a s
-        let additionCost = 
-            match s.searchPoint with 
-            | None -> 0
-            | Some pointer -> 
-                match Map.find pointer s.dynamicGrid with
-                | Agent _ -> 3
-                | Box _ -> 10
-                | _ -> 0
-        let cost = n'.cost + additionCost
-        { n' with cost = cost; value = cost }
-        
+        let cost' = n'.cost + additionalCost s
+        {n' with value = n'.cost; cost = cost'}
+
     override p.initialAction () = [|NOP|]
 
 let freeSpotGoalTest freePoints pointer s = Set.contains pointer freePoints
@@ -117,16 +119,16 @@ type BoxPointerProblem (grid, startPos, goal, prevH: Map<Pos*Pos,int>, boxPositi
     fun p -> fun _ -> boxPositions |> Set.contains p)
 
   override p.ChildNode n a s = 
-      let child = gridToNode n a s
-      let h = 
-        boxPositions
-        |> Set.map (fun p -> 
-          match Map.tryFind (child.state.searchPoint.Value,p) prevH with
-          | Some v -> v
-          | None -> Cost.MaxValue - child.cost)
-        |> Set.minElement
-      {child with value = child.cost + h}
-
+        let n' = gridToNode n a s
+        let cost' = n'.cost + additionalCost s
+        let h = 
+            boxPositions
+            |> Set.map (fun p -> 
+                match Map.tryFind (n'.state.searchPoint.Value,p) prevH with
+                | Some v -> v
+                | None -> Cost.MaxValue - n'.cost)
+            |> Set.minElement
+        {n' with value = cost' + h; cost = cost';}
 let agentGoalTest color pointer s = Option.exists (isAgentOfColor color) (s.dynamicGrid.TryFind pointer)
 type AgentPointerProblem (grid, startPos, color, prevH: Map<Pos*Pos,int>, agentColorToId: Set<Pos>) =
   inherit PointerProblem(grid, startPos, 
