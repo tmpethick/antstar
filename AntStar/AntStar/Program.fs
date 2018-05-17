@@ -158,11 +158,14 @@ let pickAgent ((boxPos, boxColor): Pos * Color) (prevH: Map<Pos*Pos,int>) (agent
                   failwith "NoBoxToAgentPathFound"
 
 // Its an obstacle if the agent cannot remove it itself
-let getObstacleFromPath (agentColor: Color) (state: Grid) (path: Pos list): Pos option = 
+let getObstacleFromPath (agentColor: Color) (protectedBox: Box option) (state: Grid) (path: Pos list): Pos option = 
     path 
     |> List.tryFind (fun pos -> 
         match Map.find pos state.dynamicGrid with 
-        | Box box -> agentColor <> getBoxColor box
+        | Box box -> 
+            match protectedBox with
+            | Some b' -> box <> b'
+            | None -> true
         | Agent _ -> true
         | _ -> false)
 
@@ -243,7 +246,7 @@ and createClearPathFromBox prevH (agentColorToId: Map<Color,Set<AgentIdx>>) (box
     eprintfn "Path to be cleared:"
     formatPath grid solutionPath |> cprintLines
 
-    box, agent, clearPath prevH agentColorToId agent solutionPath grid
+    box, agent, clearPath prevH agentColorToId agent (Some box) solutionPath grid
 
 and createClearPathForAgent prevH agentColorToId agent freeSpots grid =
     let agentPos = Map.find (getAgentIdx agent) grid.agentPos
@@ -254,12 +257,12 @@ and createClearPathForAgent prevH agentColorToId agent freeSpots grid =
     eprintfn "Path to be cleared:"
     formatPath grid agentPath |> cprintLines
 
-    clearPath prevH agentColorToId agent agentPath grid
+    clearPath prevH agentColorToId agent None agentPath grid
     
-and clearPath prevH agentColorToId agent solutionPath grid =
+and clearPath prevH agentColorToId agent (box: Box option) solutionPath grid =
     let solutionSet = Set.ofList solutionPath
     let rec clearPath' gridAcc solutionAcc = 
-        match getObstacleFromPath (getAgentColor agent) gridAcc solutionPath with
+        match getObstacleFromPath (getAgentColor agent) box gridAcc solutionPath with
         | Some obstacle -> 
             let obsActionSolution, gridAcc' = solveObstacle prevH agentColorToId (solutionSet) obstacle gridAcc
             eprintfn "After removing obstacle"
