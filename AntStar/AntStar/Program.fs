@@ -98,9 +98,7 @@ let getPositions (grid: Grid) =
     match o with
     | Agent _ -> true
     | _ -> false)
-  |> Array.Parallel.map fst
-  |> fun x -> eprintfn "%i" x.Length; x
-  |> Array.Parallel.collect (fun p ->
+  |> Array.Parallel.collect (fun (p,_) ->
     searchAllPositions grid p
     |> List.toArray
     |> Array.Parallel.map fst)
@@ -113,11 +111,15 @@ let getPositions (grid: Grid) =
   |> Map.ofArray
   
 
-let pickBox ((goalPos, gt): Pos * Goal) (grid: Grid): (Box * Pos) * Pos list = 
+let pickBox ((goalPos, gt): Pos * Goal) (prevH: Map<Pos*Pos,int>) (boxTypeToId: Map<ObjType, Set<Guid>>) (grid: Grid) : (Box * Pos) * Pos list = 
     // let grid' = grid
             //    |> Grid.removeAgents
             //    |> Grid.filterDynamicObjects (fun _ -> isOfTypeIfBox gt)
-    match graphSearch (BoxPointerProblem (grid, goalPos, gt)) with
+    match graphSearch (BoxPointerProblem (grid, goalPos, gt, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid.boxPos.[id]))) with
+        | Some [] ->
+          match Map.find goalPos grid.dynamicGrid with
+          | Box box -> (box, goalPos), []
+          | _ -> failwith "search should always lead to a box..." 
         | Some s -> 
             let state = s.Head.state
             let boxPos = state.searchPoint.Value
@@ -126,11 +128,11 @@ let pickBox ((goalPos, gt): Pos * Goal) (grid: Grid): (Box * Pos) * Pos list =
             | _ -> failwith "search should always lead to a box..." 
         | None -> failwith "NoGoalToBoxPathFound"
 
-let pickAgent ((boxPos, boxColor): Pos * Color) (grid: Grid): (Agent * Pos) * Pos list = 
+let pickAgent ((boxPos, boxColor): Pos * Color) (prevH: Map<Pos*Pos,int>) (agentColorToId: Map<Color,Set<AgentIdx>>) (grid: Grid): (Agent * Pos) * Pos list = 
     // let grid' = grid
             //    |> Grid.filterDynamicObjects (fun _ -> not << isBox)
             //    |> Grid.filterAgents (snd >> (=)boxColor)
-    match graphSearch (AgentPointerProblem (grid, boxPos, boxColor)) with
+    match graphSearch (AgentPointerProblem (grid, boxPos, boxColor, prevH, agentColorToId.[boxColor] |> Set.map (fun id -> grid.agentPos.[id]))) with
         | Some s -> 
             let state = s.Head.state
             let agentPos = state.searchPoint.Value
@@ -168,7 +170,7 @@ let formatPositions (g: Grid) (points: Set<Pos>) =
     
 let formatPath (g: Grid) (path: Pos list) = Set.ofList path |> formatPositions g
 
-let rec solveObstacle prevH (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) = 
+let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) = 
     let free = freePos state
     let goalPositions = Set.intersect free reservedPath
                         |> Set.difference free
@@ -184,7 +186,7 @@ let rec solveObstacle prevH (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) =
         eprintfn "Solving obstacle %O at %O" boxType boxPos
         formatPositions state goalPositions |> cprintLines
 
-        let box, agent, (grid', actions) = createClearPathFromBox prevH (box, boxPos) [] state
+        let box, agent, (grid', actions) = createClearPathFromBox prevH agentColorToId (box, boxPos) [] state
         match new AStarSokobanProblem (getId box, getAgentIdx agent, grid', prevH, goalTest) |> graphSearch with
         | Some solution -> 
             let acts, s = getActionsAndResultingState solution
@@ -210,8 +212,8 @@ let rec solveObstacle prevH (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) =
     | _ -> failwith "Pos should contain Box or Agent obstacle"
 
 // boxPos and agentPos might change during the recursion.. which is not intended
-and createClearPathFromBox prevH (box, boxPos) goalPath grid = 
-    let (agent, agentPos), boxPath = pickAgent (boxPos, getBoxColor box) grid
+and createClearPathFromBox prevH (agentColorToId: Map<Color,Set<AgentIdx>>) (box, boxPos) goalPath grid = 
+    let (agent, agentPos), boxPath = pickAgent (boxPos, getBoxColor box) prevH agentColorToId grid
     let solutionPath = boxPath @ goalPath |> List.tail // Drops Agent pos
     let solutionSet = Set.ofList solutionPath
     
@@ -222,7 +224,7 @@ and createClearPathFromBox prevH (box, boxPos) goalPath grid =
     let rec clearPath gridAcc solutionAcc = 
         match getObstacleFromPath (getAgentColor agent) gridAcc solutionPath with
         | Some obstacle -> 
-            let obsActionSolution, gridAcc' = solveObstacle prevH (solutionSet) obstacle gridAcc
+            let obsActionSolution, gridAcc' = solveObstacle prevH agentColorToId (solutionSet) obstacle gridAcc
             eprintfn "After removing obstacle"
             gridAcc'.ToColorRep() |> cprintLines
             clearPath gridAcc' (solutionAcc @ obsActionSolution)
@@ -231,39 +233,80 @@ and createClearPathFromBox prevH (box, boxPos) goalPath grid =
     let grid', actions = clearPath grid []
     box, agent, (grid', actions)
 
-and createClearPath prevH (goalPos, goal) grid = 
+and createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid = 
     // eprintfn "createClearPath: %O\n" (goalPos, goal, grid)
-    let (box, boxPos), goalPath = pickBox (goalPos, goal) grid
+    let (box, boxPos), goalPath = pickBox (goalPos, goal) prevH boxTypeToId grid
     // eprintfn "Picked box at: %O" boxPos
-    createClearPathFromBox prevH (box, boxPos) goalPath grid
+    createClearPathFromBox prevH agentColorToId (box, boxPos) goalPath grid
 
-let solveGoal (goalPos, goal) prevH grid : Action [] list * Grid = 
+let solveGoal (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid : Action [] list * Grid = 
         eprintfn "solving goal %O:" goal
-        let box, agent, (grid', actions) = createClearPath prevH (goalPos, goal) grid
+        let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid
         let boxType = (getType box).ToString().ToUpper()
         eprintfn "Path cleared for %O, %O, %O" goal boxType (getAgentIdx agent)
         eprintfn "with pos: %O" goalPos
-        match new AStarSokobanProblem (goalPos, getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
+
+        let nextGoalPos =  
+          match goals with
+          | [] -> None
+          | x::xs -> 
+            //let solutionBox = 
+            //  BoxPointerProblem(grid, x |> fst, x |> snd)
+            //  |> graphSearch
+            
+            x |> fst |> Some
+        
+
+        match new AStarSokobanProblem ((goalPos,nextGoalPos), getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
+        | Some [] ->
+          actions,grid'
         | Some solution ->
             solution.Head.state.ToColorRep() |> cprintLines
             let state = solution.Head.state.AddWall goalPos
             actions @ List.rev (List.map (fun n -> n.action) solution), state
         | None -> failwith "come on"
 
-let rec solveGoals actions prevH grid = function 
+let rec solveGoals actions prevH boxTypeToId agentColorToId grid = function 
     | [] -> actions
     | goal :: goals -> 
-        let actions', grid' = solveGoal goal prevH grid
-        solveGoals (actions @ actions') prevH grid' goals 
+        let actions', grid' = solveGoal goal goals prevH boxTypeToId agentColorToId grid
+        solveGoals (actions @ actions') prevH boxTypeToId agentColorToId grid' goals 
 
-let testGoalOrdering grid = 
-    eprintfn "Ordering goals"
-    let goals = orderGoals grid (Set.ofList (getGoals grid))
-    eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
+let testGoalOrdering (grid: Grid) = 
+    eprintfn "Mapping types to positions"
+    let boxTypeToId =
+      grid.dynamicGrid
+      |> Map.toArray
+      |> Array.fold (fun m (x,y) ->
+        match y with
+        | Box(id,t,c) -> 
+          let s': Set<Guid> =
+            match Map.tryFind t m with
+            | Some s -> Set.add id s
+            | None -> Set.singleton id
+          Map.add t s' m
+        | _ -> m) Map.empty
+    
+    let agentColorToId =
+      grid.dynamicGrid
+      |> Map.toArray
+      |> Array.fold (fun m (x,y) ->
+        match y with
+        | Agent(id,c) -> 
+          let s': Set<AgentIdx> =
+            match Map.tryFind c m with
+            | Some s -> Set.add id s
+            | None -> Set.singleton id
+          Map.add c s' m
+        | _ -> m) Map.empty
+
     eprintfn "Precomputing h values"
     let prevH = getPositions grid
+    eprintfn "Ordering goals"
+    let goals = orderGoals grid prevH boxTypeToId (Set.ofList (getGoals grid))
+    eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
     eprintfn "Solving goals"
-    solveGoals [] prevH grid goals |> toOutput |> printOutput
+    solveGoals [] prevH boxTypeToId agentColorToId grid goals |> toOutput |> printOutput
 
 let isOfTypeIfBox gt d = (((not << isBox) d) || (isBoxOfType gt d))
 
@@ -278,9 +321,9 @@ let rec readInput() =
 let main args =
     let lines = readInput ()
     // let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels/testlevels/","MAAgentBoxObstacle.lvl"))
-    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAAnagram.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","competition_levels","SAAntsStar.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAsokobanLevel96.lvl"))
-    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SABlinky.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SAEvilCorp.lvl"))
     let grid = getGridFromLines (Seq.toList lines)
     testGoalOrdering grid |> ignore
     0
