@@ -124,7 +124,7 @@ let pickBox ((goalPos, gt): Pos * Goal) (prevH: Map<Pos*Pos,int>) (boxTypeToId: 
             let state = s.Head.state
             let boxPos = state.searchPoint.Value
             match Map.find boxPos state.dynamicGrid with
-            | Box box -> (box, boxPos), List.map (fun n -> n.state.searchPoint.Value) s
+            | Box box -> (box, boxPos), List.append (List.map (fun n -> n.state.searchPoint.Value) s) [goalPos]
             | _ -> failwith "search should always lead to a box..." 
         | None -> failwith "NoGoalToBoxPathFound"
 
