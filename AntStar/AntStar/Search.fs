@@ -113,7 +113,10 @@ type BoxPointerProblem (grid, startPos, goal, prevH: Map<Pos*Pos,int>, boxPositi
       let child = gridToNode n a s
       let h = 
         boxPositions
-        |> Set.map (fun p -> prevH.[child.state.searchPoint.Value,p])
+        |> Set.map (fun p -> 
+          match Map.tryFind (child.state.searchPoint.Value,p) prevH with
+          | Some v -> v
+          | None -> Cost.MaxValue - child.cost)
         |> Set.minElement
       {child with value = child.cost + h}
 
@@ -126,7 +129,10 @@ type AgentPointerProblem (grid, startPos, color, prevH: Map<Pos*Pos,int>, agentC
       let child = gridToNode n a s
       let h = 
         agentColorToId
-        |> Set.map (fun p -> prevH.[child.state.searchPoint.Value,p])
+        |> Set.map (fun p -> 
+          match Map.tryFind (child.state.searchPoint.Value,p) prevH with
+          | Some v -> v
+          | None -> Cost.MaxValue - child.cost)
         |> Set.minElement
       {child with value = child.cost + h}
 
