@@ -130,7 +130,7 @@ let pickBox ((goalPos, gt): Pos * Goal) (prevH: Map<Pos*Pos,int>) (boxTypeToId: 
     // let grid' = grid
             //    |> Grid.removeAgents
             //    |> Grid.filterDynamicObjects (fun _ -> isOfTypeIfBox gt)
-    match graphSearch (BoxPointerProblem (grid, goalPos, gt, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid.boxPos.[id]))) with
+    match graphSearch (BoxPointerProblem (grid, goalPos, gt, true, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid.boxPos.[id]))) with
         | Some [] ->
           match Map.find goalPos grid.dynamicGrid with
           | Box box -> (box, goalPos), []
@@ -147,7 +147,7 @@ let pickAgent ((boxPos, boxColor): Pos * Color) (prevH: Map<Pos*Pos,int>) (agent
     // let grid' = grid
             //    |> Grid.filterDynamicObjects (fun _ -> not << isBox)
             //    |> Grid.filterAgents (snd >> (=)boxColor)
-    match graphSearch (AgentPointerProblem (grid, boxPos, boxColor, prevH, agentColorToId.[boxColor] |> Set.map (fun id -> grid.agentPos.[id]))) with
+    match graphSearch (AgentPointerProblem (grid, boxPos, boxColor, true, prevH, agentColorToId.[boxColor] |> Set.map (fun id -> grid.agentPos.[id]))) with
         | Some s -> 
             let state = s.Head.state
             let agentPos = state.searchPoint.Value

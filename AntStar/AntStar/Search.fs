@@ -114,36 +114,37 @@ type PosPointerProblem (grid, startPos, endPos) =
       {child with value = child.cost + euclideanDistance child.state.searchPoint.Value endPos}
 
 let boxGoalTest goal pointer s = s.dynamicGrid.TryFind pointer |> Option.exists (isBoxOfType goal)
-type BoxPointerProblem (grid, startPos, goal, prevH: Map<Pos*Pos,int>, boxPositions: Set<Pos>) =
+type BoxPointerProblem (grid, startPos, goal, addCost: bool, prevH: Map<Pos*Pos,int>, boxPositions: Set<Pos>) =
   inherit PointerProblem(grid, startPos, 
     fun p -> fun _ -> boxPositions |> Set.contains p)
 
   override p.ChildNode n a s = 
         let n' = gridToNode n a s
-        let cost' = n'.cost + additionalCost s
+        let cost' = if addCost then n'.cost + 2*(additionalCost s) else n'.cost
         let h = 
             boxPositions
             |> Set.map (fun p -> 
                 match Map.tryFind (n'.state.searchPoint.Value,p) prevH with
-                | Some v -> v
-                | None -> Cost.MaxValue - n'.cost)
+                | Some v -> v + cost'
+                | None -> Cost.MaxValue)
             |> Set.minElement
-        {n' with value = cost' + h; cost = cost';}
+        {n' with value = h; cost = n'.cost;}
 let agentGoalTest color pointer s = Option.exists (isAgentOfColor color) (s.dynamicGrid.TryFind pointer)
-type AgentPointerProblem (grid, startPos, color, prevH: Map<Pos*Pos,int>, agentColorToId: Set<Pos>) =
+type AgentPointerProblem (grid, startPos, color, addCost: bool, prevH: Map<Pos*Pos,int>, agentPositions: Set<Pos>) =
   inherit PointerProblem(grid, startPos, 
-    fun p -> fun _ -> agentColorToId |> Set.contains p)
+    fun p -> fun _ -> agentPositions |> Set.contains p)
 
   override p.ChildNode n a s = 
-      let child = gridToNode n a s
+      let n' = gridToNode n a s
+      let cost' = if addCost then n'.cost + 2*(additionalCost s) else n'.cost
       let h = 
-        agentColorToId
+        agentPositions
         |> Set.map (fun p -> 
-          match Map.tryFind (child.state.searchPoint.Value,p) prevH with
-          | Some v -> v
-          | None -> Cost.MaxValue - child.cost)
+          match Map.tryFind (n'.state.searchPoint.Value,p) prevH with
+          | Some v -> v + cost'
+          | None -> Cost.MaxValue)
         |> Set.minElement
-      {child with value = child.cost + h}
+      {n' with value = h; cost = n'.cost;}
 
 let allGoalsMet (grid: Grid) = 
     grid.staticGrid
@@ -206,7 +207,7 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
           |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
 
         // printfn "%O" grid'
-        match graphSearch (BoxPointerProblem (grid', goalPos, gt, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid'.boxPos.[id]))) with
+        match graphSearch (BoxPointerProblem (grid', goalPos, gt, false, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid'.boxPos.[id]))) with
         | Some n -> 
           if isMA |> not then true else
             let boxPos = n.Head.state.searchPoint.Value
@@ -214,7 +215,7 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
               match n.Head.state.dynamicGrid.[boxPos] with
               | Box(_,_,c) -> Some c
               | _ -> None
-            match graphSearch (AgentPointerProblem (grid', boxPos, boxColor.Value, prevH, agentColorToId.[boxColor.Value] |> Set.map (fun id -> grid'.agentPos.[id]))) with
+            match graphSearch (AgentPointerProblem (grid', boxPos, boxColor.Value, false, prevH, agentColorToId.[boxColor.Value] |> Set.map (fun id -> grid'.agentPos.[id]))) with
             | Some _ -> true
             | None -> false  
         | None -> false  
