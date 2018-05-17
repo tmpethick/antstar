@@ -12,6 +12,7 @@ let isBoxOfType    t = function | Box (_,t', _)   -> t' = t | _ -> false
 let isAgentOfColor c = function | Agent (_, c') -> c' = c | _ -> false
 
 let isBox = function | Box _ -> true | _ -> false
+let isWall = function | Wall -> true | _ -> false
 
 let findAdjecent (predicate: DynamicObject -> bool) (pos: Pos) (grid: Grid) : (Pos * DynamicObject) option = 
     [N;S;E;W]
@@ -70,11 +71,11 @@ type SearchQueue<'s,'a when 's: comparison> =
     member pq.Length = pq.q.Length
 
 [<AbstractClass>]
-type ISokobanProblem () =
-   inherit Problem<Grid,Action []>()
+type ISokobanProblem<'a> () =
+   inherit Problem<Grid,'a>()
 
 type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean) = 
-    inherit ISokobanProblem()
+    inherit ISokobanProblem<Action []>()
     override p.Initial = {grid with searchPoint = Some startPos }
     override p.Actions s = Grid.validMovePointer s |> List.map (fun (a,g) -> (Array.create 1 a, g))
     override p.GoalTest s = match s.searchPoint with 
@@ -136,9 +137,42 @@ let rec retrieveSolution (n: Node<'s,'a>) =
     | None    -> []
     | Some n' -> n :: retrieveSolution n'
 
-let graphSearch (p: ISokobanProblem) = 
+let graphSearch' (p: ISokobanProblem<Action [] * LockedPos>) = 
     let initialEl = root p
     let f = (SearchQueue<Grid,Action []>.empty).Insert initialEl
+    let e: Set<Grid> = Set.empty
+    let rec loop (e: Set<Grid>) (f: SearchQueue<Grid,Action [] * LockedPos>) = 
+        // let frontierStates = Map.map (fun s n -> n.state) f.m
+        // printfn "%O" frontierStates
+        // eprintfn "Size of explored: %O\n" e.Count
+        // eprintfn "Size of frontier: %O\n" f.Length
+        if f.IsEmpty
+        then None
+        else 
+            let n, f' = f.Pop
+            // n.state.ToColorRep() |> cprintLines
+            // eprintfn "at %O" n.state.searchPoint.Value
+            if p.GoalTest n.state
+            then 
+                Some (retrieveSolution n)
+            else 
+                let e' = e.Add n.state
+                let f'' = p.Actions n.state |> List.fold (fun (f'': SearchQueue<Grid,Action [] * LockedPos>) (a,s) ->
+                    let c = p.ChildNode n a s
+                    let isNew = not ((e'.Contains c.state) || (f''.Contains c.state))
+                    let isCheaper = 
+                        match f''.TryFind c.state with
+                        | Some n -> n.value > c.value
+                        | None -> false
+                    if isNew || isCheaper 
+                    then f''.Insert c
+                    else f'') f'
+                loop e' f''
+    loop e f
+
+let graphSearch (p: ISokobanProblem<Action []>) = 
+    let initialEl: Node<Grid,Action []> = root p
+    let f: SearchQueue<Grid,Action []> = (SearchQueue<Grid,Action []>.empty).Insert initialEl
     let e: Set<Grid> = Set.empty
     let rec loop (e: Set<Grid>) (f: SearchQueue<Grid,Action []>) = 
         // let frontierStates = Map.map (fun s n -> n.state) f.m
@@ -194,24 +228,48 @@ let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoal
 
 let orderGoals grid unsolvedGoals = orderGoals' grid [] unsolvedGoals
 
-type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) = 
-    inherit ISokobanProblem()
+let accLockedFields (prefix: (Action [] * LockedPos) list): LockedPos list = 
+    prefix
+    |> List.map snd
+    |> List.scan Set.union Set.empty
+
+type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest, prefix: ((Action [] * HistoryLockedPos) * Grid) []) = 
+    inherit ISokobanProblem<Action [] * LockedPos>()
     let numAgents = grid.agentPos.Count
-    override p.Initial = grid
-    override p.Actions s = Grid.validSokobanActions numAgents agentIdx s
+    let agentInt = agentIdx |> System.Char.GetNumericValue |> int
+    
+    override p.Initial = {grid with actionDepth = 0}
+    override p.Actions s = 
+        // Array.create agentCount NOP
+        let (action, locked), prefixState = prefix.[s.actionDepth]
+        let prefixState' = {prefixState with actionDepth = prefixState.actionDepth + 1}
+        let restrictedGrid = Set.fold (fun (s'': Grid) pos -> s''.AddWall pos) prefixState' locked
+        let actions = Grid.validSokobanActions agentIdx prefixState' restrictedGrid
+    
+        List.map (fun ((a, d), g) -> 
+            let action' = Array.copy action
+            Array.set action' agentInt a
+            ((action', d), g)) actions
     override p.GoalTest s = goalTest agentIdx s
     override p.ChildNode n a s = 
-      let child = gridToNode n a s
+      let child = gridToNode' n a s
       {child with value = child.cost}
-    override p.initialAction () = Array.create numAgents NOP
+    override p.initialAction () = Array.create numAgents NOP, Set.empty
 
 // AStarSokobanProblem(boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest)
 type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest, heuristicTransformer) =
-    inherit ISokobanProblem()
+    inherit ISokobanProblem<Action [] * LockedPos>()
 
     let numAgents = grid.agentPos.Count
+    let agentInt = agentIdx |> System.Char.GetNumericValue |> int
     override p.Initial = grid
-    override p.Actions s = Grid.validSokobanActions numAgents agentIdx s
+    override p.Actions s =
+        Grid.validSokobanActions agentIdx s s 
+        |> List.map (fun ((a, d), g) -> 
+            let action' = Array.create numAgents NOP
+            Array.set action' agentInt a
+            ((action', d), g))
+
     override p.GoalTest s = goalTest agentIdx s
                             
     override p.ChildNode n a s = 
@@ -219,11 +277,11 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
 
         let agentPos = Map.find agentIdx s.agentPos
         let agentH = Map.find (boxPos,agentPos) prevHValues
-        let node = gridToNode n a s
+        let node = gridToNode' n a s
         let h = 8*agentH
         {node with value = node.cost + heuristicTransformer boxPos h }
         //{node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}
-    override p.initialAction () = Array.create numAgents NOP
+    override p.initialAction () = Array.create numAgents NOP, Set.empty
 
     /// Heuristic search with goal.
     new (goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>) = 
