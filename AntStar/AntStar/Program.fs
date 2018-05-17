@@ -138,8 +138,9 @@ let pickAgent ((boxPos, boxColor): Pos * Color) (prevH: Map<Pos*Pos,int>) (agent
             let agentPos = state.searchPoint.Value
             match Map.find agentPos state.dynamicGrid with
             | Agent agent -> (agent, agentPos), List.map (fun n -> n.state.searchPoint.Value) s
-            | _ -> failwith "search should always lead to a box..." 
-        | None -> failwith "NoGoalToBoxPathFound"
+            | _ -> failwith "search should always lead to an agent..." 
+        | None -> grid.ToColorRep () |> cprintLines
+                  failwith "NoBoxToAgentPathFound"
 
 // Its an obstacle if the agent cannot remove it itself
 let getObstacleFromPath (agentColor: Color) (state: Grid) (path: Pos list): Pos option = 
