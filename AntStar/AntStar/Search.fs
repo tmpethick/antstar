@@ -92,15 +92,6 @@ type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean
         { n' with cost = n'.cost + additionCost; value = n'.value + additionCost }
         
     override p.initialAction () = [|NOP|]
-
-let boxGoalTest goal pointer s = s.dynamicGrid.TryFind pointer |> Option.exists (isBoxOfType goal)
-type BoxPointerProblem (grid, startPos, goal) =
-    inherit PointerProblem(grid, startPos, boxGoalTest goal)
-
-let agentGoalTest color pointer s = Option.exists (isAgentOfColor color) (s.dynamicGrid.TryFind pointer)
-type AgentPointerProblem (grid, startPos, color) =
-    inherit PointerProblem(grid, startPos, agentGoalTest color)
-
 let manhattanDistance p1 p2 = abs (fst p1 - fst p2) + abs (snd p1 - snd p2)
 let euclideanDistance (p1: Pos) (p2: Pos) = 
     let e1 = (float (fst p1 - fst p2) ** 2.0)
@@ -113,6 +104,31 @@ type PosPointerProblem (grid, startPos, endPos) =
       let child = gridToNode n a s
       {child with value = child.cost + euclideanDistance child.state.searchPoint.Value endPos}
 
+let boxGoalTest goal pointer s = s.dynamicGrid.TryFind pointer |> Option.exists (isBoxOfType goal)
+type BoxPointerProblem (grid, startPos, goal, prevH: Map<Pos*Pos,int>, boxPositions: Set<Pos>) =
+  inherit PointerProblem(grid, startPos, 
+    fun p -> fun _ -> boxPositions |> Set.contains p)
+
+  override p.ChildNode n a s = 
+      let child = gridToNode n a s
+      let h = 
+        boxPositions
+        |> Set.map (fun p -> prevH.[child.state.searchPoint.Value,p])
+        |> Set.minElement
+      {child with value = child.cost + h}
+
+let agentGoalTest color pointer s = Option.exists (isAgentOfColor color) (s.dynamicGrid.TryFind pointer)
+type AgentPointerProblem (grid, startPos, color, prevH: Map<Pos*Pos,int>, agentColorToId: Set<Pos>) =
+  inherit PointerProblem(grid, startPos, 
+    fun p -> fun _ -> agentColorToId |> Set.contains p)
+
+  override p.ChildNode n a s = 
+      let child = gridToNode n a s
+      let h = 
+        agentColorToId
+        |> Set.map (fun p -> prevH.[child.state.searchPoint.Value,p])
+        |> Set.minElement
+      {child with value = child.cost + h}
 
 let allGoalsMet (grid: Grid) = 
     grid.staticGrid
@@ -162,7 +178,7 @@ let graphSearch (p: ISokobanProblem) =
     loop e f
 
 // TODO: multiple goals can use same box. Might lead ordering with non-trivial solution.
-let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoals : Set<Pos * Goal>) = 
+let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (boxTypeToId: Map<ObjType,Set<Guid>>) (orderedGoals : List<Pos * Goal>) (unsolvedGoals : Set<Pos * Goal>) = 
     // set other unsolvedGoals to walls
     // search for box of Goal type
     // return true if exists
@@ -174,17 +190,17 @@ let rec orderGoals' (grid: Grid) (orderedGoals : List<Pos * Goal>) (unsolvedGoal
           |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
 
         // printfn "%O" grid'
-        match graphSearch (BoxPointerProblem (grid', goalPos, gt)) with
+        match graphSearch (BoxPointerProblem (grid', goalPos, gt, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid'.boxPos.[id]))) with
         | Some _ -> true
         | None -> false  
     
     if unsolvedGoals.IsEmpty 
         then orderedGoals
         else match Set.toList unsolvedGoals |> List.tryFind isSolvableGoal with
-             | Some g -> orderGoals' grid (g :: orderedGoals) (unsolvedGoals.Remove g)
+             | Some g -> orderGoals' grid prevH boxTypeToId (g :: orderedGoals) (unsolvedGoals.Remove g)
              | None -> failwith (sprintf "%A are unsolvable" unsolvedGoals)
 
-let orderGoals grid unsolvedGoals = orderGoals' grid [] unsolvedGoals
+let orderGoals grid prevH boxTypeToId unsolvedGoals = orderGoals' grid prevH boxTypeToId [] unsolvedGoals
 
 type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) = 
     inherit ISokobanProblem()
@@ -218,15 +234,23 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
     override p.initialAction () = Array.create numAgents NOP
 
     /// Heuristic search with goal.
-    new (goalPos: Pos, boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>) = 
+    new ((goalPos,nextGoalPos): Pos * (Pos option), boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>) = 
         let goalTest agentIdx s = 
             let boxPos = Map.find boxGuid s.boxPos
             let agentPos = Map.find agentIdx s.agentPos
-            let onGoal = 
-                match Map.find agentPos s.staticGrid with
-                | Goal _ -> true
-                | _ -> false
-            (goalPos = boxPos) && not onGoal
+            let onGoal = false
+                //match Map.find agentPos s.staticGrid with
+                //| Goal _ -> true
+                //| _ -> false
+            match (goalPos = boxPos) && not onGoal with
+            | false -> false
+            | true ->
+              match Option.isSome nextGoalPos with
+              | false -> true
+              | true ->
+                PosPointerProblem(grid.AddWall(goalPos), agentPos, nextGoalPos.Value)
+                |> graphSearch
+                |> Option.isSome
         let heuristicTransformer boxPos h = 
             let boxH = Map.find (goalPos,boxPos) prevHValues
             h + 10*boxH
