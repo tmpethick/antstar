@@ -15,8 +15,9 @@ let isBox = function | Box _ -> true | _ -> false
 
 let findAdjecent (predicate: DynamicObject -> bool) (pos: Pos) (grid: Grid) : (Pos * DynamicObject) option = 
     [N;S;E;W]
-    |> List.map (flip posFromDir pos)
-    |> List.map (fun pos -> pos, grid.dynamicGrid.TryFind pos)
+    |> List.map (
+        flip posFromDir pos 
+        >> fun pos -> pos, grid.dynamicGrid.TryFind pos)
     |> List.tryFind (function
                      | (pos, Some o) when predicate o -> true
                      | _ -> false)
@@ -89,9 +90,15 @@ type PointerProblem (grid: Grid, startPos: Pos, goalTest: Pos -> Grid -> Boolean
                 | Agent _ -> 3
                 | Box _ -> 10
                 | _ -> 0
-        { n' with cost = n'.cost + additionCost; value = n'.value + additionCost }
+        let cost = n'.cost + additionCost
+        { n' with cost = cost; value = cost }
         
     override p.initialAction () = [|NOP|]
+
+let freeSpotGoalTest freePoints pointer s = Set.contains pointer freePoints
+type FreeSpotPointerProblem (grid, startPos, freePoints) =
+    inherit PointerProblem(grid, startPos, freeSpotGoalTest freePoints)
+
 let manhattanDistance p1 p2 = abs (fst p1 - fst p2) + abs (snd p1 - snd p2)
 let euclideanDistance (p1: Pos) (p2: Pos) = 
     let e1 = (float (fst p1 - fst p2) ** 2.0)
@@ -160,11 +167,13 @@ let graphSearch (p: ISokobanProblem) =
         // let frontierStates = Map.map (fun s n -> n.state) f.m
         // printfn "%O" frontierStates
         // eprintfn "Size of explored: %O\n" e.Count
+        // eprintfn "Size of frontier: %O\n" f.Length
         if f.IsEmpty
         then None
         else 
             let n, f' = f.Pop
             // n.state.ToColorRep() |> cprintLines
+            // eprintfn "at %O" n.state.searchPoint.Value
             if p.GoalTest n.state
             then 
                 Some (retrieveSolution n)

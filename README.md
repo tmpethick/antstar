@@ -2,16 +2,20 @@
 
 # TODO v2.0
 
-- Clear path
-- Add cost to box on path in PointerSearch
-- Generalize multiagent clearPath to singleagent
-- Fix all pairs shortest path preprocessing
-- Merge multiagent
+- [x] Clear path
+- [x] Add cost to box on path in PointerSearch
+- [ ] Generalize multiagent clearPath to singleagent
+- [ ] Fix all pairs shortest path preprocessing
+- [ ] Merge multiagent
 
 # Problems
 
 - Make sure they don't stand on goals (see `onGoal`)
 - high weighted goal heurstic is important so agent can move away from box
+
+# Levels
+
+- Good for testing multiagent parallelization: `MABeliebers.lvl`
 
 
 # TODO
