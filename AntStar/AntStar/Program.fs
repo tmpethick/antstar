@@ -41,9 +41,24 @@ let rec testActions state = function
                             testActions state' actions
     | [] -> printfn "Is Goal state: %O" (allGoalsMet state)
 
-let getGridFromLines lines = 
+let getGridFromLines lines : Grid = 
   let colors, gridLines = parseColors Map.empty (lines)
-  parseMap colors (gridLines |> addIdx)
+  let grid = parseMap colors (gridLines |> addIdx)
+  let agentColors = 
+    grid.dynamicGrid
+    |> Map.fold (fun s p o ->
+      match o with
+      | Agent(id,c) -> Set.add c s
+      | _ -> s
+    ) Set.empty
+  {grid with 
+    dynamicGrid = 
+      grid.dynamicGrid
+      |> Map.map (fun _ o -> 
+        match o with
+        | Box(id,t,c) when agentColors.Contains c |> not -> Wall
+        | x -> x
+      )}
 
 let getGrid filename =
   let lines = Path.Combine(__SOURCE_DIRECTORY__, filename) |> readLines
@@ -143,11 +158,14 @@ let pickAgent ((boxPos, boxColor): Pos * Color) (prevH: Map<Pos*Pos,int>) (agent
                   failwith "NoBoxToAgentPathFound"
 
 // Its an obstacle if the agent cannot remove it itself
-let getObstacleFromPath (agentColor: Color) (state: Grid) (path: Pos list): Pos option = 
+let getObstacleFromPath (agentColor: Color) (protectedBox: Box option) (state: Grid) (path: Pos list): Pos option = 
     path 
     |> List.tryFind (fun pos -> 
         match Map.find pos state.dynamicGrid with 
-        | Box box -> agentColor <> getBoxColor box
+        | Box box -> 
+            match protectedBox with
+            | Some b' -> box <> b'
+            | None -> true
         | Agent _ -> true
         | _ -> false)
 
@@ -228,7 +246,7 @@ and createClearPathFromBox prevH (agentColorToId: Map<Color,Set<AgentIdx>>) (box
     eprintfn "Path to be cleared:"
     formatPath grid solutionPath |> cprintLines
 
-    box, agent, clearPath prevH agentColorToId agent solutionPath grid
+    box, agent, clearPath prevH agentColorToId agent (Some box) solutionPath grid
 
 and createClearPathForAgent prevH agentColorToId agent freeSpots grid =
     let agentPos = Map.find (getAgentIdx agent) grid.agentPos
@@ -239,12 +257,12 @@ and createClearPathForAgent prevH agentColorToId agent freeSpots grid =
     eprintfn "Path to be cleared:"
     formatPath grid agentPath |> cprintLines
 
-    clearPath prevH agentColorToId agent agentPath grid
+    clearPath prevH agentColorToId agent None agentPath grid
     
-and clearPath prevH agentColorToId agent solutionPath grid =
+and clearPath prevH agentColorToId agent (box: Box option) solutionPath grid =
     let solutionSet = Set.ofList solutionPath
     let rec clearPath' gridAcc solutionAcc = 
-        match getObstacleFromPath (getAgentColor agent) gridAcc solutionPath with
+        match getObstacleFromPath (getAgentColor agent) box gridAcc solutionPath with
         | Some obstacle -> 
             let obsActionSolution, gridAcc' = solveObstacle prevH agentColorToId (solutionSet) obstacle gridAcc
             eprintfn "After removing obstacle"
@@ -325,7 +343,8 @@ let testGoalOrdering (grid: Grid) =
     eprintfn "Precomputing h values"
     let prevH = getPositions grid
     eprintfn "Ordering goals"
-    let goals = orderGoals grid prevH boxTypeToId (Set.ofList (getGoals grid))
+    let isMA = grid.agentPos.Count > 1
+    let goals = orderGoals grid prevH isMA boxTypeToId agentColorToId (Set.ofList (getGoals grid))
     eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
     eprintfn "Solving goals"
     solveGoals [] prevH boxTypeToId agentColorToId grid goals |> toOutput |> printOutput
@@ -343,7 +362,7 @@ let rec readInput() =
 let main args =
     let lines = readInput ()
     // let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels/testlevels/","MAAgentBoxObstacle.lvl"))
-    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","competition_levels","SAAntsStar.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","competition_levels","MAora.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAsokobanLevel96.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SAEvilCorp.lvl"))
     let grid = getGridFromLines (Seq.toList lines)
