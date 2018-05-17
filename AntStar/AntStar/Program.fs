@@ -41,9 +41,24 @@ let rec testActions state = function
                             testActions state' actions
     | [] -> printfn "Is Goal state: %O" (allGoalsMet state)
 
-let getGridFromLines lines = 
+let getGridFromLines lines : Grid = 
   let colors, gridLines = parseColors Map.empty (lines)
-  parseMap colors (gridLines |> addIdx)
+  let grid = parseMap colors (gridLines |> addIdx)
+  let agentColors = 
+    grid.dynamicGrid
+    |> Map.fold (fun s p o ->
+      match o with
+      | Agent(id,c) -> Set.add c s
+      | _ -> s
+    ) Set.empty
+  {grid with 
+    dynamicGrid = 
+      grid.dynamicGrid
+      |> Map.map (fun _ o -> 
+        match o with
+        | Box(id,t,c) when agentColors.Contains c |> not -> Wall
+        | x -> x
+      )}
 
 let getGrid filename =
   let lines = Path.Combine(__SOURCE_DIRECTORY__, filename) |> readLines
