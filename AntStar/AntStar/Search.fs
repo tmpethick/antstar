@@ -193,29 +193,38 @@ let graphSearch (p: ISokobanProblem) =
     loop e f
 
 // TODO: multiple goals can use same box. Might lead ordering with non-trivial solution.
-let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (boxTypeToId: Map<ObjType,Set<Guid>>) (orderedGoals : List<Pos * Goal>) (unsolvedGoals : Set<Pos * Goal>) = 
+let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxTypeToId: Map<ObjType,Set<Guid>>) (agentColorToId: Map<Color,Set<AgentIdx>>) (orderedGoals : List<Pos * Goal>) (unsolvedGoals : Set<Pos * Goal>) = 
     // set other unsolvedGoals to walls
     // search for box of Goal type
     // return true if exists
     let isSolvableGoal ((goalPos, gt): Pos * Goal) = 
         let grid' = 
           grid
-          |> Grid.removeAgents
           |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
           |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
 
         // printfn "%O" grid'
         match graphSearch (BoxPointerProblem (grid', goalPos, gt, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid'.boxPos.[id]))) with
-        | Some _ -> true
+        | Some n -> 
+          if isMA |> not then true else
+            let boxPos = n.Head.state.searchPoint.Value
+            let boxColor =
+              match n.Head.state.dynamicGrid.[boxPos] with
+              | Box(_,_,c) -> Some c
+              | _ -> None
+            match graphSearch (AgentPointerProblem (grid', boxPos, boxColor.Value, prevH, agentColorToId.[boxColor.Value] |> Set.map (fun id -> grid'.agentPos.[id]))) with
+            | Some _ -> true
+            | None -> false  
         | None -> false  
     
     if unsolvedGoals.IsEmpty 
         then orderedGoals
         else match Set.toList unsolvedGoals |> List.tryFind isSolvableGoal with
-             | Some g -> orderGoals' grid prevH boxTypeToId (g :: orderedGoals) (unsolvedGoals.Remove g)
+             | Some g -> orderGoals' grid prevH isMA boxTypeToId agentColorToId (g :: orderedGoals) (unsolvedGoals.Remove g)
              | None -> failwith (sprintf "%A are unsolvable" unsolvedGoals)
 
-let orderGoals grid prevH boxTypeToId unsolvedGoals = orderGoals' grid prevH boxTypeToId [] unsolvedGoals
+let orderGoals grid prevH isMA boxTypeToId agentColorToId unsolvedGoals = 
+  orderGoals' grid prevH isMA boxTypeToId agentColorToId [] unsolvedGoals
 
 type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) = 
     inherit ISokobanProblem()

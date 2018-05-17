@@ -340,7 +340,8 @@ let testGoalOrdering (grid: Grid) =
     eprintfn "Precomputing h values"
     let prevH = getPositions grid
     eprintfn "Ordering goals"
-    let goals = orderGoals grid prevH boxTypeToId (Set.ofList (getGoals grid))
+    let isMA = grid.agentPos.Count > 1
+    let goals = orderGoals grid prevH isMA boxTypeToId agentColorToId (Set.ofList (getGoals grid))
     eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
     eprintfn "Solving goals"
     solveGoals [] prevH boxTypeToId agentColorToId grid goals |> toOutput |> printOutput
@@ -358,7 +359,7 @@ let rec readInput() =
 let main args =
     let lines = readInput ()
     // let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels/testlevels/","MAAgentBoxObstacle.lvl"))
-    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","competition_levels","SAAntsStar.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","competition_levels","MAora.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAsokobanLevel96.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SAEvilCorp.lvl"))
     let grid = getGridFromLines (Seq.toList lines)
