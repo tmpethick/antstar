@@ -1,14 +1,14 @@
 
 runonfile:
 	MSBuild AntStar/AntStar/AntStar.fsproj /p:Configuration=Release;Targets=Clean
-	echo "$$(cat AntStar/AntStar/levels/testlevels/competition_levelsSP17/MAAIoliMAsh.lvl)\n" | dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll 
+	echo "$$(cat AntStar/AntStar/levels/competition_levels/MACybot.lvl)\n" | dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll 
 
 testonserver:
 	MSBuild AntStar/AntStar/AntStar.fsproj /p:Configuration=Release;Targets=Clean
-	java -jar environment/server.jar -g 300 -c"dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll" -l AntStar/AntStar/levels/testlevels/competition_levelsSP17/MAAIoliMAsh.lvl
+	java -jar environment/server.jar -g 300 -c"dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll" -l AntStar/AntStar/levels/competition_levels/SABeTrayEd.lvl
 
 runSAtests:
-	./antstar.sh AntStar/AntStar/levels/testlevels/competition_levelsSP17/SA*.lvl
+	./antstar.sh "AntStar/AntStar/levels/competition_levels/SAAI*.lvl"
 
 runMAtests:
-	./antstar.sh AntStar/AntStar/levels/testlevels/competition_levelsSP17/MA*.lvl
+	./antstar.sh "AntStar/AntStar/levels/competition_levels/MA*.lvl"
