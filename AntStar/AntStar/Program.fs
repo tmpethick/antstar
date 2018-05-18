@@ -19,7 +19,7 @@ let convertActionArray actionArray =
                 |> Array.choose id
                 |> String.concat ","
     let s = String.concat "" ["["; elems; "]"]
-    eprintfn "%s" s
+    //eprintfn "%s" s
     s
 
 let rec toOutput (l: (Action []) list): string list = List.map convertActionArray l
@@ -197,7 +197,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
         let boxPos = pos
 
         let boxType = (getType box).ToString().ToUpper()
-        eprintfn "Solving obstacle %O at %O" boxType boxPos
+        //eprintfn "Solving obstacle %O at %O" boxType boxPos
         formatPositions state freePositions |> cprintLines
 
         let goalTest agentIdx s = 
@@ -213,7 +213,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
         | None -> failwith "come on"
     | Agent a -> 
         // TODO: clear agent path with createClearPathFromBox
-        eprintfn "Solving obstacle %O at %O" (getAgentIdx a) pos
+        //eprintfn "Solving obstacle %O at %O" (getAgentIdx a) pos
         formatPositions state freePositions |> cprintLines
 
         let goalTest agentIdx s = 
@@ -225,7 +225,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
             freePositions.Contains agentPos && not onGoal
             
         let grid', actions = createClearPathForAgent prevH agentColorToId a freePositions state
-        eprintfn "Solving obstacle %O at %O now cleared" (getAgentIdx a) pos
+        //eprintfn "Solving obstacle %O at %O now cleared" (getAgentIdx a) pos
         formatPositions grid' freePositions |> cprintLines
 
         let acts, grid'' = 
@@ -243,7 +243,6 @@ and createClearPathFromBox prevH (agentColorToId: Map<Color,Set<AgentIdx>>) (box
     let solutionPath = boxPath @ goalPath |> List.tail // Drops Agent pos
     let solutionSet = Set.ofList solutionPath
     
-    eprintfn "Path to be cleared from box %O:" box
     formatPath grid solutionPath |> cprintLines
 
     box, agent, clearPath prevH agentColorToId agent (Some box) solutionPath grid
@@ -254,7 +253,7 @@ and createClearPathForAgent prevH agentColorToId agent freeSpots grid =
         match FreeSpotPointerProblem (grid, agentPos, freeSpots) |> graphSearch with
         | Some s -> List.map (fun n -> n.state.searchPoint.Value) s |> List.tail
         | None -> failwith "could not clear agent"
-    eprintfn "Path to be cleared for agent %O:" agent
+        
     formatPath grid agentPath |> cprintLines
 
     clearPath prevH agentColorToId agent None agentPath grid
@@ -265,7 +264,7 @@ and clearPath (prevH: Map<(Pos * Pos),int>) (agentColorToId: Map<Color,Set<Agent
         match getObstacleFromPath (getAgentColor agent) box gridAcc solutionPath with
         | Some obstacle -> 
             let obsActionSolution, gridAcc' = solveObstacle prevH agentColorToId (solutionSet) obstacle gridAcc
-            eprintfn "After removing obstacle"
+            //eprintfn "After removing obstacle"
             gridAcc'.ToColorRep() |> cprintLines
             clearPath' gridAcc' (solutionAcc @ obsActionSolution)
         | None -> 
@@ -280,11 +279,11 @@ and createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid =
     createClearPathFromBox prevH agentColorToId (box, boxPos) goalPath grid
 
 let solveGoal (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid : Action [] list * Grid = 
-        eprintfn "solving goal %O:" goal
+        //eprintfn "solving goal %O:" goal
         let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid
         let boxType = (getType box).ToString().ToUpper()
-        eprintfn "Path cleared for %O, %O, %O" goal boxType (getAgentIdx agent)
-        eprintfn "with pos: %O" goalPos
+        //eprintfn "Path cleared for %O, %O, %O" goal boxType (getAgentIdx agent)
+        //eprintfn "with pos: %O" goalPos
 
         let nextGoalPos =  
           match goals with
@@ -306,8 +305,43 @@ let solveGoal (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agent
             actions @ List.rev (List.map (fun n -> n.action) solution), state
         | None -> failwith "come on"
 
+let getUnsolvedGoals (expectedSolvedGoals: Set<Pos * Goal>) (grid: Grid) = 
+    let missing = 
+        grid.GetGoals ()
+        |> List.filter (fun (pos, goal) ->
+            Set.contains (pos,goal) expectedSolvedGoals
+            && not (grid.dynamicGrid.[pos] |> isBoxOfType goal)
+        )
+    Set.ofList missing
+
+let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid: Action [] list * Grid * Set<Pos * Goal> = 
+        eprintfn "solving goal %O:" goal
+        let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid
+        let boxType = (getType box).ToString().ToUpper()
+        eprintfn "Path cleared for %O, %O, %O" goal boxType (getAgentIdx agent)
+        eprintfn "with pos: %O" goalPos
+
+        let nextGoalPos =  
+          match goals with
+          | [] -> None
+          | x::xs -> 
+            x |> fst |> Some
+
+        match new AStarSokobanProblem ((goalPos,None), getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
+        | Some [] ->
+          actions,grid', Set.empty
+        | Some solution ->
+            solution.Head.state.ToColorRep() |> cprintLines
+            let actions, grid = getActionsAndResultingState solution
+            let unsolvedGoals = getUnsolvedGoals solvedGoalsAcc grid
+            actions, grid, unsolvedGoals
+        | None -> 
+            eprintfn "%O %O" (getAgentIdx agent) goalPos
+            grid'.ToColorRep() |> cprintLines
+            failwith "come on"
+
 let rec solveGoals actions prevH boxTypeToId agentColorToId grid = function 
-    | [] -> actions
+    | [] -> actions, grid
     | goal :: goals -> 
         let actions', grid' = solveGoal goal goals prevH boxTypeToId agentColorToId grid
         solveGoals (actions @ actions') prevH boxTypeToId agentColorToId grid' goals 
@@ -335,8 +369,29 @@ let removeUnmovableBoxes (grid: Grid) (prevH: Map<Pos*Pos,int>) =
         ) grid.dynamicGrid
     {grid with dynamicGrid = removedBoxes}
 
+
+let rec solveInterdependentGoals solvedGoalsAcc actionsAcc prevH boxTypeToId agentColorToId gridAcc (interdependentGoals: Set<Pos * Goal>) =  
+    if Set.isEmpty interdependentGoals 
+    then actionsAcc, gridAcc
+    else
+        let goal = Set.minElement interdependentGoals
+        let remainingGoals = Set.remove goal interdependentGoals
+        let remainingGoalList = Set.toList remainingGoals
+        eprintfn "Solving %O" goal
+        eprintfn "interdependentGoals %O" interdependentGoals
+        eprintfn "Solved goals %O" solvedGoalsAcc
+        let actions', gridAcc', unsolvedGoals = 
+            solveInterdependentGoal solvedGoalsAcc goal remainingGoalList prevH boxTypeToId agentColorToId gridAcc
+        eprintfn "Unsolved %O" unsolvedGoals
+        let remainingGoals' = Set.union remainingGoals unsolvedGoals
+        let solvedGoalsAcc' = 
+            solvedGoalsAcc
+            |> Set.add goal 
+            |> (flip (Set.fold (flip Set.remove))) unsolvedGoals // remove all unsolved from solved
+        solveInterdependentGoals solvedGoalsAcc' (actionsAcc @ actions') prevH boxTypeToId agentColorToId gridAcc' remainingGoals' 
+
 let testGoalOrdering (grid: Grid) = 
-    eprintfn "Mapping types to positions"
+    //eprintfn "Mapping types to positions"
     let boxTypeToId =
       grid.dynamicGrid
       |> Map.toArray
@@ -363,17 +418,21 @@ let testGoalOrdering (grid: Grid) =
           Map.add c s' m
         | _ -> m) Map.empty
 
-    eprintfn "Precomputing h values"
+    //eprintfn "Precomputing h values"
     let prevH = getPositions grid
     eprintfn "Removing unmovable boxes"
     let grid' = removeUnmovableBoxes grid prevH
     grid'.ToColorRep() |> cprintLines
     eprintfn "Ordering goals"
-    let isMA = grid'.agentPos.Count > 1
-    let goals = orderGoals grid' prevH isMA boxTypeToId agentColorToId (Set.ofList (getGoals grid'))
+    //eprintfn "Ordering goals"
+    let isMA = grid.agentPos.Count > 1
+
+    let goals, interdependentGoals = orderGoals grid prevH isMA boxTypeToId agentColorToId (Set.ofList (getGoals grid))
     eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
     eprintfn "Solving goals"
-    solveGoals [] prevH boxTypeToId agentColorToId grid' goals |> toOutput |> printOutput
+    let actions', grid' = solveGoals [] prevH boxTypeToId agentColorToId grid goals
+    let actions'', grid'' = solveInterdependentGoals Set.empty actions' prevH boxTypeToId agentColorToId grid' interdependentGoals
+    actions'' |> toOutput |> printOutput
 
 let isOfTypeIfBox gt d = (((not << isBox) d) || (isBoxOfType gt d))
 
@@ -387,8 +446,8 @@ let rec readInput() =
 [<EntryPoint>]
 let main args =
     let lines = readInput ()
-    // let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels/testlevels/","MAAgentBoxObstacle.lvl"))
-    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","competition_levels","MAora.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","debugging.lvl"))
+    //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","competition_levels","MAdashen.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","SAsokobanLevel96.lvl"))
     //let lines = File.ReadAllLines(Path.Combine(__SOURCE_DIRECTORY__,"levels","testlevels","competition_levelsSP17","SAEvilCorp.lvl"))
     let grid = getGridFromLines (Seq.toList lines)
