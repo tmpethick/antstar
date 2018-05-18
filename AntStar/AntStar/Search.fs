@@ -221,7 +221,7 @@ let rec solveIndependentGoals (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: b
         else match Set.toList unsolvedGoals |> List.tryFind isIndependent with
              | Some g -> 
                 eprintfn "goal unsolved solved: %O" g
-                solveIndependentGoals grid prevH isMA boxTypeToId agentColorToId (g :: orderedGoals) (unsolvedGoals.Remove g)
+                solveIndependentGoals grid prevH isMA boxTypeToId agentColorToId (orderedGoals @ [g]) (unsolvedGoals.Remove g)
              | None -> orderedGoals, unsolvedGoals
              
 // TODO: multiple goals can use same box. Might lead ordering with non-trivial solution.
@@ -238,7 +238,7 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
         // eprintfn "%O" unsolvedGoals
         // eprintfn "%O" orderedGoals
         // grid'.ToColorRep() |> cprintLines
-        grid.ToColorRep() |> cprintLines
+        // grid.ToColorRep() |> cprintLines
 
         // printfn "%O" grid'
         match graphSearch (BoxPointerProblem (grid', goalPos, gt, false, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid'.boxPos.[id]))) with
@@ -258,7 +258,7 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
         then orderedGoals, Set.empty
         else match Set.toList unsolvedGoals |> List.tryFind isSolvableGoal with
              | Some g -> 
-                eprintfn "goal solved: %O" g
+                // eprintfn "goal solved: %O" g
                 orderGoals' grid prevH isMA boxTypeToId agentColorToId (g :: orderedGoals) (unsolvedGoals.Remove g)
              | None -> 
                 solveIndependentGoals grid prevH isMA boxTypeToId agentColorToId orderedGoals unsolvedGoals
