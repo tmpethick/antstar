@@ -106,12 +106,16 @@ let euclideanDistance (p1: Pos) (p2: Pos) =
     let e1 = (float (fst p1 - fst p2) ** 2.0)
     let e2 = (float (snd p1 - snd p2) ** 2.0)
     Math.Sqrt (e1 + e2) |> int
-type PosPointerProblem (grid, startPos, endPos) =
+type PosPointerProblem (grid, startPos, endPos, prevH) =
     inherit PointerProblem(grid, startPos, fun p -> fun _ -> p = endPos)
 
     override p.ChildNode n a s = 
       let child = gridToNode n a s
-      {child with value = child.cost + euclideanDistance child.state.searchPoint.Value endPos}
+      let h = 
+        match Map.tryFind (child.state.searchPoint.Value, endPos) prevH with
+        | Some i -> child.cost + i
+        | None -> Cost.MaxValue
+      {child with value = h}
 
 let boxGoalTest goal pointer s = s.dynamicGrid.TryFind pointer |> Option.exists (isBoxOfType goal)
 type BoxPointerProblem (grid, startPos, goal, addCost: bool, prevH: Map<Pos*Pos,int>, boxPositions: Set<Pos>) =
@@ -120,7 +124,7 @@ type BoxPointerProblem (grid, startPos, goal, addCost: bool, prevH: Map<Pos*Pos,
 
   override p.ChildNode n a s = 
         let n' = gridToNode n a s
-        let cost' = if addCost then n'.cost + 2*(additionalCost s) else n'.cost
+        let cost' = if addCost then n'.cost + additionalCost s else n'.cost
         let h = 
             boxPositions
             |> Set.map (fun p -> 
@@ -136,7 +140,7 @@ type AgentPointerProblem (grid, startPos, color, addCost: bool, prevH: Map<Pos*P
 
   override p.ChildNode n a s = 
       let n' = gridToNode n a s
-      let cost' = if addCost then n'.cost + 2*(additionalCost s) else n'.cost
+      let cost' = if addCost then n'.cost + additionalCost s else n'.cost
       let h = 
         agentPositions
         |> Set.map (fun p -> 
@@ -275,9 +279,14 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
               match Option.isSome nextGoalPos with
               | false -> true
               | true ->
-                PosPointerProblem(grid.AddWall(goalPos), agentPos, nextGoalPos.Value)
-                |> graphSearch
-                |> Option.isSome
+                let hasPath = 
+                  PosPointerProblem(grid.AddWall(goalPos), agentPos, nextGoalPos.Value, prevHValues)
+                  |> graphSearch
+                  |> Option.isSome
+                if hasPath then true else
+                  PosPointerProblem(grid, agentPos, nextGoalPos.Value, prevHValues)
+                  |> graphSearch
+                  |> Option.isNone
         let heuristicTransformer boxPos h = 
             let boxH = Map.find (goalPos,boxPos) prevHValues
             h + 10*boxH
@@ -285,4 +294,4 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
 
     /// Heuristic search without goal.
     new (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest) =
-        AStarSokobanProblem (boxGuid, agentIdx, grid, prevHValues, goalTest, fun _ h -> h)
+        AStarSokobanProblem (boxGuid, agentIdx, grid, prevHValues, goalTest, (fun _ h -> h))
