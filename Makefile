@@ -1,3 +1,8 @@
+runall:
+	MSBuild AntStar/AntStar/AntStar.fsproj /p:Configuration=Release;Targets=Clean
+	for filename in AntStar/AntStar/levels/testlevels/competition_levels/*.lvl; do
+		echo "$$(cat $$filename)\n" | dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll 
+	done
 
 runonfile:
 	MSBuild AntStar/AntStar/AntStar.fsproj /p:Configuration=Release;Targets=Clean

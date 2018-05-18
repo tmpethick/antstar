@@ -29,10 +29,6 @@ let rec printOutput (l:string list) =
     | []   -> []
     | h::t -> printfn "%s" h :: printOutput t
 
-let printPossibleOutcomes state = Grid.allValidActions state 
-                                  |> List.map (fun (_, s') -> printfn "%O" s') 
-                                  |> ignore
-
 let rec testActions state = function
     | action :: actions ->
         match apply action state with
@@ -172,12 +168,16 @@ let getObstacleFromPath (agentColor: Color) (protectedBox: Box option) (state: G
 // pos of all DEmpty pos
 let freePos (state: Grid): Set<Pos> =
     Map.toSeq state.dynamicGrid
-    |> Seq.filter (fun (pos, t) -> match t with | DEmpty -> true | _ -> false)
+    |> Seq.filter (fun (pos, t) -> t |> isWall |> not)
     |> Seq.map fst
     |> Set.ofSeq
 
 let getActionsAndResultingState (solution: Node<Grid,Action []> list) = 
     List.rev (List.map (fun n -> n.action) solution), solution.Head.state
+
+let getActionsAndResultingState' (solution: Node<Grid,Action [] * LockedPos> list): (Action [] * LockedPos) list * Grid = 
+    let actions = List.map (fun n -> n.action) solution |> List.rev
+    actions, solution.Head.state
 
 let formatPositions (g: Grid) (points: Set<Pos>) = 
     Grid.GridToColoredStringTransformer (fun g (i,j) ->
@@ -188,10 +188,20 @@ let formatPositions (g: Grid) (points: Set<Pos>) =
     
 let formatPath (g: Grid) (path: Pos list) = Set.ofList path |> formatPositions g
 
-let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (state: Grid) = 
+type ActionList = (Action [] * HistoryLockedPos) list
+
+let appendActions (a1: ActionList) (a2: ActionList): ActionList = 
+    let a1' = 
+        match a2 with        
+        | [] -> a1
+        | (_, futureLocked) :: _ -> List.map (fun (a,l) -> a, Set.union futureLocked l) a1
+    a1' @ a2
+
+let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (state: Grid): ActionList * Grid = 
     let free = freePos state
     let freePositions = Set.intersect free reservedPath
                         |> Set.difference free
+
     match Map.find pos state.dynamicGrid with
     | Box box -> 
         let boxPos = pos
@@ -206,9 +216,9 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
             freePositions.Contains agentPos && freePositions.Contains boxPos
 
         let box, agent, (grid', actions) = createClearPathFromBox prevH agentColorToId (box, boxPos) [] state
-        match new AStarSokobanProblem (getId box, getAgentIdx agent, grid', prevH, goalTest) |> graphSearch with
+        match new AStarSokobanProblem (getId box, getAgentIdx agent, grid', prevH, goalTest) |> graphSearch' with
         | Some solution -> 
-            let acts, s = getActionsAndResultingState solution
+            let acts, s = getActionsAndResultingState' solution
             actions @ acts, s
         | None -> failwith "come on"
     | Agent a -> 
@@ -229,10 +239,10 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
         formatPositions grid' freePositions |> cprintLines
 
         let acts, grid'' = 
-            BFSSokobanProblem (getAgentIdx a, grid', goalTest) 
-            |> graphSearch
+            BFSSokobanProblem (getAgentIdx a, grid', goalTest, [||]) 
+            |> graphSearch'
             |> Option.get
-            |> getActionsAndResultingState
+            |> getActionsAndResultingState'
         actions @ acts, grid''
 
     | _ -> failwith "Pos should contain Box or Agent obstacle"
@@ -252,7 +262,7 @@ and createClearPathForAgent prevH agentColorToId agent freeSpots grid =
     let agentPos = Map.find (getAgentIdx agent) grid.agentPos
     let agentPath = 
         match FreeSpotPointerProblem (grid, agentPos, freeSpots) |> graphSearch with
-        | Some s -> List.map (fun n -> n.state.searchPoint.Value) s |> List.tail
+        | Some s -> List.map (fun n -> n.state.searchPoint.Value) s
         | None -> failwith "could not clear agent"
     //eprintfn "Path to be cleared:"
     formatPath grid agentPath |> cprintLines
@@ -279,7 +289,7 @@ and createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid =
     // eprintfn "Picked box at: %O" boxPos
     createClearPathFromBox prevH agentColorToId (box, boxPos) goalPath grid
 
-let solveGoal (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid : Action [] list * Grid = 
+let solveGoal (actions: ActionList) (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid : ActionList * Grid = 
         //eprintfn "solving goal %O:" goal
         let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid
         let boxType = (getType box).ToString().ToUpper()
@@ -297,7 +307,7 @@ let solveGoal (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agent
             x |> fst |> Some
         
 
-        match new AStarSokobanProblem ((goalPos,nextGoalPos), getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
+        match new AStarSokobanProblem ((goalPos,nextGoalPos), getId box, getAgentIdx agent, grid', prevH) |> graphSearch' with
         | Some [] ->
           actions,grid'
         | Some solution ->
@@ -315,7 +325,7 @@ let getUnsolvedGoals (expectedSolvedGoals: Set<Pos * Goal>) (grid: Grid) =
         )
     Set.ofList missing
 
-let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid: Action [] list * Grid * Set<Pos * Goal> = 
+let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid: ActionList * Grid * Set<Pos * Goal> = 
         eprintfn "solving goal %O:" goal
         let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid
         let boxType = (getType box).ToString().ToUpper()
@@ -328,12 +338,12 @@ let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (g
           | x::xs -> 
             x |> fst |> Some
 
-        match new AStarSokobanProblem ((goalPos,None), getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
+        match new AStarSokobanProblem ((goalPos,None), getId box, getAgentIdx agent, grid', prevH) |> graphSearch' with
         | Some [] ->
           actions,grid', Set.empty
         | Some solution ->
             solution.Head.state.ToColorRep() |> cprintLines
-            let actions, grid = getActionsAndResultingState solution
+            let actions, grid = getActionsAndResultingState' solution
             let unsolvedGoals = getUnsolvedGoals solvedGoalsAcc grid
             actions, grid, unsolvedGoals
         | None -> 
@@ -344,8 +354,13 @@ let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (g
 let rec solveGoals actions prevH boxTypeToId agentColorToId grid = function 
     | [] -> actions, grid
     | goal :: goals -> 
-        let actions', grid' = solveGoal goal goals prevH boxTypeToId agentColorToId grid
-        solveGoals (actions @ actions') prevH boxTypeToId agentColorToId grid' goals 
+        let actions', grid' = solveGoal actions goal goals prevH boxTypeToId agentColorToId grid
+        let accLocked = actions' |> accLockedFields
+        let locked =
+            accLocked
+            |> List.zip (actions |> List.map snd)
+            |> List.map (fun (a, b) -> Set.union a, b)
+        solveGoals actions' prevH boxTypeToId agentColorToId grid' goals 
 
 let rec solveInterdependentGoals solvedGoalsAcc actionsAcc prevH boxTypeToId agentColorToId gridAcc (interdependentGoals: Set<Pos * Goal>) =  
     if Set.isEmpty interdependentGoals 
@@ -405,7 +420,7 @@ let testGoalOrdering (grid: Grid) =
     eprintfn "Solving goals"
     let actions', grid' = solveGoals [] prevH boxTypeToId agentColorToId grid goals
     let actions'', grid'' = solveInterdependentGoals Set.empty actions' prevH boxTypeToId agentColorToId grid' interdependentGoals
-    actions'' |> toOutput |> printOutput
+    actions'' |> List.map fst |> toOutput |> printOutput
 
 let isOfTypeIfBox gt d = (((not << isBox) d) || (isBoxOfType gt d))
 

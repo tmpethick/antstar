@@ -13,6 +13,7 @@ type IGrid =
   abstract searchPoint : Pos option with get
 
 type Grid     = { 
+    actionDepth : int
     staticGrid  : StaticGrid 
     dynamicGrid : DynamicGrid
     agentPos    : Map<AgentIdx, Pos>
@@ -55,7 +56,12 @@ type Grid     = {
         override g.ToString() = Grid.GridToStringTransformer (fun g -> Grid.PosToString g >> fst) g
         member g.ToColorRep() = Grid.GridToColoredStringTransformer (Grid.PosToColoredString) g
         member g.AddWall corr = 
-          { g with dynamicGrid = g.dynamicGrid |> Map.add corr Wall }
+          let g' = 
+            match Map.find corr g.dynamicGrid with
+            | Agent a -> {g with agentPos = g.agentPos.Remove (getAgentIdx a)}
+            | Box b -> {g with boxPos = g.boxPos.Remove (getId b)}
+            | _ -> g
+          { g' with dynamicGrid = g.dynamicGrid |> Map.add corr Wall }
         member g.AddBox corr (box: Box) = 
           { g with dynamicGrid = g.dynamicGrid |> Map.add corr (Box box); boxPos = Map.add (getId box) corr g.boxPos }
         member g.AddAgent corr agent = 
@@ -125,9 +131,20 @@ type Grid     = {
         static member inline addAgent pos agent (g:Grid) = g.AddAgent pos agent
         static member inline removeAgents (g: Grid) = g.RemoveAgents ()
 
+// Problem: 
+// type Dep = Set<Pos>
+// actionHistory: (Action, Dep) list
+// getActions:
+//  apply action history
+//  s.addWall for all Set<Pos>. then apply
+// (search all the way to the end)
+
+// 
+
 let emptyGrid w h = 
     let coords = cartesian [0..w-1] [0..h-1]
-    {staticGrid  = new StaticGrid  (Seq.map (fun c -> c, SEmpty) coords);
+    {actionDepth = 0;
+     staticGrid  = new StaticGrid  (Seq.map (fun c -> c, SEmpty) coords);
      dynamicGrid = new DynamicGrid (Seq.map (fun c -> c, DEmpty) coords);
      agentPos    = Map.empty;
      boxPos      = Map.empty;
@@ -205,6 +222,20 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
         | _,_                                  -> Error NotAssociatedObject
 
 
+let filterValidDepActions grid restrictedGrid actions = 
+  actions
+  |> List.toArray
+  |> Array.map (fun (a, dep) -> 
+      match apply a restrictedGrid with 
+      | Success s -> 
+        match apply a grid with
+        | Success s' -> Some((a, dep),s') 
+        | Error _ -> failwith "If action can be applied in restrictedGrid it should be applicable in grid"
+      | Error _   -> None)
+  |> Array.filter Option.isSome
+  |> Array.map Option.get
+  |> Array.toList
+
 let filterValidActions grid actions = 
   actions
   |> List.toArray
@@ -224,80 +255,37 @@ let validMovePointer (grid: Grid) =
   movePointer |> filterValidActions grid
 
 let allSokobanActions (agentIdx: AgentIdx) (grid: Grid) = 
+  let agentPos = Map.find agentIdx grid.agentPos
+  let nopDep = Set.ofList [agentPos]
+  
+  let beforeMove = Set.singleton agentPos
   let moves = 
     [N;S;E;W]
-    |> List.map (fun d -> Move (agentIdx, d))
-  
+    |> List.map (fun d -> 
+      let afterMove = posFromDir d agentPos
+      let move = beforeMove |> Set.add afterMove
+      ((Move (agentIdx, d), move)))
+
   cartesian [N;S;E;W] [N;S;E;W]
   |> List.fold (fun cur (d1,d2) ->
-    Push(agentIdx, d1, d2) :: Pull(agentIdx,d1,d2) :: cur
-    ) (NOP :: moves)
+    let p1 = posFromDir d1 agentPos
+    let p2 = posFromDir d2 agentPos
+    let p12 = posFromDir d2 p1
+    let pullBefore = Set.ofList [agentPos; p2]
+    let pullAfter = Set.ofList [p1; p12]
+    let pushBefore = Set.ofList [agentPos; p1]
+    let pushAfter = pullBefore
+    let pull = Set.union pullBefore pullAfter
+    let push = Set.union pushBefore pushAfter
+    (Push(agentIdx, d1, d2), pull)
+    :: (Pull(agentIdx,d1,d2), push)
+    :: cur
+    ) ((NOP, nopDep) :: moves)
 
-let validSokobanActions agentCount agentIdx (grid: Grid) = 
-  let agentInt = agentIdx |> System.Char.GetNumericValue |> int
-  allSokobanActions agentIdx grid 
-  |> filterValidActions grid
-  |> List.map (fun (a, grid) -> 
-    let actions = Array.create agentCount NOP
-    Array.set actions agentInt a
-    actions, grid)
+let validSokobanActions agentIdx (grid: Grid) (restrictedGrid: Grid) =
+  allSokobanActions agentIdx restrictedGrid 
+  |> filterValidDepActions grid restrictedGrid
 
-// TODO: parallelise
-let allValidActions (grid: Grid) =
-  let desireActions =
-    match grid.desires.Head with
-    | IsGoal 
-    | FindAgent _ 
-    | FindBox _ -> []
-    | MoveAgent(_,aId,_) -> 
-      [N;E;S;W] 
-      |> List.map (fun d -> Move(aId,d))
-    | MoveBox(bPos,id,_) ->
-      let validAgents = 
-        grid.agentPos
-        |> Map.toArray
-        |> Array.map (fun (aid,p) -> grid.GetAgent aid, p)
-        |> Array.map (fun (context,p) -> 
-          match context with
-          | Success(aid,color) -> aid,color,p
-          | Error _ -> failwith "uncaught custom error")
-      
-      let boxPos =
-        match Map.tryFind id grid.boxPos with
-        | Some bp -> bp
-        | None -> failwith "unknown box"
-      
-      let agentsNextToBox =
-        validAgents
-        |> Array.map (fun (aid,ac,apos) ->
-          let isNextToBox =
-            [N;E;S;W]
-            |> List.map (fun d -> d,posFromDir d apos)
-            |> List.exists (fun (_,p) -> p = boxPos)
-          aid,isNextToBox)
-        |> Array.filter (fun (_,isNextToBox) -> isNextToBox)
-        |> Array.map fst
-      
-      let moveAgent =
-        validAgents
-        |> Array.toList
-        |> List.fold (fun cur (aid,_,_) ->
-          [N;E;S;W]
-          |> List.fold (fun cur' d -> Move(aid,d) :: cur') cur
-        ) []
-      
-      agentsNextToBox
-      |> Array.toList
-      |> List.fold (fun cur aid ->
-        cartesian [N;E;S;W] [N;E;S;W]
-        |> List.fold (fun cur' (d1,d2) -> Push(aid,d1,d2) :: Pull(aid,d1,d2) :: cur') cur
-      ) moveAgent
-       
-  desireActions
-  |> List.fold (fun cur a -> a :: cur) movePointer
-  |> filterValidActions grid
-
-// Parse map
 let readLines filename =
   filename
   |> File.ReadAllLines
@@ -384,6 +372,10 @@ let rec getPositions curDesire positions (n: Node<Grid,Action>) =
  
 // No heurstics
 let gridToNode (n: Node<Grid,Action []>) a s =
+  let cost = n.cost + 1
+  { n with state = s; cost = cost; value = cost; action = a; parent = Some n; }
+
+let gridToNode' (n: Node<Grid, Action [] * Set<Pos>>) a s =
   let cost = n.cost + 1
   { n with state = s; cost = cost; value = cost; action = a; parent = Some n; }
 

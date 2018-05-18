@@ -21,6 +21,8 @@ let defaultColor = Blue
 let defaultAgent: Agent = ('0', defaultColor)
 
 type Pos = int * int
+type LockedPos = Set<Pos>
+type HistoryLockedPos = Set<Pos>
 type StaticGrid  = Map<Pos, StaticObject>
 type DynamicGrid = Map<Pos, DynamicObject>
 
