@@ -253,7 +253,6 @@ and createClearPathFromBox prevH (agentColorToId: Map<Color,Set<AgentIdx>>) (box
     let solutionPath = boxPath @ goalPath |> List.tail // Drops Agent pos
     let solutionSet = Set.ofList solutionPath
     
-    //eprintfn "Path to be cleared:"
     formatPath grid solutionPath |> cprintLines
 
     box, agent, clearPath prevH agentColorToId agent (Some box) solutionPath grid
@@ -264,12 +263,12 @@ and createClearPathForAgent prevH agentColorToId agent freeSpots grid =
         match FreeSpotPointerProblem (grid, agentPos, freeSpots) |> graphSearch with
         | Some s -> List.map (fun n -> n.state.searchPoint.Value) s
         | None -> failwith "could not clear agent"
-    //eprintfn "Path to be cleared:"
+        
     formatPath grid agentPath |> cprintLines
 
     clearPath prevH agentColorToId agent None agentPath grid
     
-and clearPath prevH agentColorToId agent (box: Box option) solutionPath grid =
+and clearPath (prevH: Map<(Pos * Pos),int>) (agentColorToId: Map<Color,Set<AgentIdx>>) agent (box: Box option) solutionPath grid =
     let solutionSet = Set.ofList solutionPath
     let rec clearPath' gridAcc solutionAcc = 
         match getObstacleFromPath (getAgentColor agent) box gridAcc solutionPath with
@@ -362,6 +361,30 @@ let rec solveGoals actions prevH boxTypeToId agentColorToId grid = function
             |> List.map (fun (a, b) -> Set.union a, b)
         solveGoals actions' prevH boxTypeToId agentColorToId grid' goals 
 
+let removeUnmovableBoxes (grid: Grid) (prevH: Map<Pos*Pos,int>) =
+    let removedBoxes = 
+        grid.dynamicGrid 
+        |> Map.fold (fun s p o ->
+            match o with
+            | Box(id, ot, c) ->
+                let matchingAgents = 
+                    grid.dynamicGrid
+                    |> Map.fold (fun ps p' o' ->
+                        match o' with
+                        | Agent(aid,ac) when c = ac -> Set.add p' ps
+                        | _ -> ps
+                    ) Set.empty
+                let hasPath =
+                    matchingAgents
+                    |> Set.exists (fun aPos ->
+                        Map.containsKey (aPos,p) prevH
+                    )
+                if hasPath then s else Map.add p Wall s
+            | _ -> s
+        ) grid.dynamicGrid
+    {grid with dynamicGrid = removedBoxes}
+
+
 let rec solveInterdependentGoals solvedGoalsAcc actionsAcc prevH boxTypeToId agentColorToId gridAcc (interdependentGoals: Set<Pos * Goal>) =  
     if Set.isEmpty interdependentGoals 
     then actionsAcc, gridAcc
@@ -412,6 +435,10 @@ let testGoalOrdering (grid: Grid) =
 
     //eprintfn "Precomputing h values"
     let prevH = getPositions grid
+    eprintfn "Removing unmovable boxes"
+    let grid' = removeUnmovableBoxes grid prevH
+    grid'.ToColorRep() |> cprintLines
+    eprintfn "Ordering goals"
     //eprintfn "Ordering goals"
     let isMA = grid.agentPos.Count > 1
 
