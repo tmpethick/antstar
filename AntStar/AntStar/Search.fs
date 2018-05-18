@@ -232,7 +232,7 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
     let isSolvableGoal ((goalPos, gt): Pos * Goal) = 
         let grid' = 
           grid
-          // |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
+        //   |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
           |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
         // eprintfn "%O" (goalPos, gt)
         // eprintfn "%O" unsolvedGoals

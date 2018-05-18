@@ -336,7 +336,10 @@ let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (g
             let actions, grid = getActionsAndResultingState solution
             let unsolvedGoals = getUnsolvedGoals solvedGoalsAcc grid
             actions, grid, unsolvedGoals
-        | None -> failwith "come on"
+        | None -> 
+            eprintfn "%O %O" (getAgentIdx agent) goalPos
+            grid'.ToColorRep() |> cprintLines
+            failwith "come on"
 
 let rec solveGoals actions prevH boxTypeToId agentColorToId grid = function 
     | [] -> actions, grid
