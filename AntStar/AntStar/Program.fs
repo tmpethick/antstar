@@ -328,7 +328,7 @@ let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (g
           | x::xs -> 
             x |> fst |> Some
 
-        match new AStarSokobanProblem ((goalPos,nextGoalPos), getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
+        match new AStarSokobanProblem ((goalPos,None), getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
         | Some [] ->
           actions,grid', Set.empty
         | Some solution ->
