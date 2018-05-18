@@ -280,10 +280,11 @@ and createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid =
 
 let solveGoal (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid : Action [] list * Grid = 
         //eprintfn "solving goal %O:" goal
+        eprintfn "with pos: %O" goalPos
         let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid
         let boxType = (getType box).ToString().ToUpper()
         //eprintfn "Path cleared for %O, %O, %O" goal boxType (getAgentIdx agent)
-        //eprintfn "with pos: %O" goalPos
+        
 
         let nextGoalPos =  
           match goals with
@@ -315,11 +316,11 @@ let getUnsolvedGoals (expectedSolvedGoals: Set<Pos * Goal>) (grid: Grid) =
     Set.ofList missing
 
 let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid: Action [] list * Grid * Set<Pos * Goal> = 
-        eprintfn "solving goal %O:" goal
+        // eprintfn "solving goal %O:" goal
         let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid
         let boxType = (getType box).ToString().ToUpper()
-        eprintfn "Path cleared for %O, %O, %O" goal boxType (getAgentIdx agent)
-        eprintfn "with pos: %O" goalPos
+        // eprintfn "Path cleared for %O, %O, %O" goal boxType (getAgentIdx agent)
+        // eprintfn "with pos: %O" goalPos
 
         let nextGoalPos =  
           match goals with
@@ -336,7 +337,7 @@ let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (g
             let unsolvedGoals = getUnsolvedGoals solvedGoalsAcc grid
             actions, grid, unsolvedGoals
         | None -> 
-            eprintfn "%O %O" (getAgentIdx agent) goalPos
+            // eprintfn "%O %O" (getAgentIdx agent) goalPos
             grid'.ToColorRep() |> cprintLines
             failwith "come on"
 
@@ -377,12 +378,12 @@ let rec solveInterdependentGoals solvedGoalsAcc actionsAcc prevH boxTypeToId age
         let goal = Set.minElement interdependentGoals
         let remainingGoals = Set.remove goal interdependentGoals
         let remainingGoalList = Set.toList remainingGoals
-        eprintfn "Solving %O" goal
-        eprintfn "interdependentGoals %O" interdependentGoals
-        eprintfn "Solved goals %O" solvedGoalsAcc
+        // eprintfn "Solving %O" goal
+        // eprintfn "interdependentGoals %O" interdependentGoals
+        // eprintfn "Solved goals %O" solvedGoalsAcc
         let actions', gridAcc', unsolvedGoals = 
             solveInterdependentGoal solvedGoalsAcc goal remainingGoalList prevH boxTypeToId agentColorToId gridAcc
-        eprintfn "Unsolved %O" unsolvedGoals
+        // eprintfn "Unsolved %O" unsolvedGoals
         let remainingGoals' = Set.union remainingGoals unsolvedGoals
         let solvedGoalsAcc' = 
             solvedGoalsAcc
@@ -420,18 +421,18 @@ let testGoalOrdering (grid: Grid) =
 
     //eprintfn "Precomputing h values"
     let prevH = getPositions grid
-    eprintfn "Removing unmovable boxes"
+    // eprintfn "Removing unmovable boxes"
     let grid' = removeUnmovableBoxes grid prevH
     grid'.ToColorRep() |> cprintLines
-    eprintfn "Ordering goals"
+    // eprintfn "Ordering goals"
     //eprintfn "Ordering goals"
     let isMA = grid.agentPos.Count > 1
 
-    let goals, interdependentGoals = orderGoals grid prevH isMA boxTypeToId agentColorToId (Set.ofList (getGoals grid))
-    eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
-    eprintfn "Solving goals"
-    let actions', grid' = solveGoals [] prevH boxTypeToId agentColorToId grid goals
-    let actions'', grid'' = solveInterdependentGoals Set.empty actions' prevH boxTypeToId agentColorToId grid' interdependentGoals
+    let goals, interdependentGoals = orderGoals grid' prevH isMA boxTypeToId agentColorToId (Set.ofList (getGoals grid'))
+    // eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
+    // eprintfn "Solving goals"
+    let actions', grid'' = solveGoals [] prevH boxTypeToId agentColorToId grid' goals
+    let actions'', grid''' = solveInterdependentGoals Set.empty actions' prevH boxTypeToId agentColorToId grid'' interdependentGoals
     actions'' |> toOutput |> printOutput
 
 let isOfTypeIfBox gt d = (((not << isBox) d) || (isBoxOfType gt d))

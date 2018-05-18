@@ -224,7 +224,7 @@ let rec solveIndependentGoals (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: b
         then orderedGoals, Set.empty
         else match Set.toList unsolvedGoals |> List.tryFind isIndependent with
              | Some g -> 
-                eprintfn "goal unsolved solved: %O" g
+                // eprintfn "goal unsolved solved: %O" g
                 solveIndependentGoals grid prevH isMA boxTypeToId agentColorToId (orderedGoals @ [g]) (unsolvedGoals.Remove g)
              | None -> orderedGoals, unsolvedGoals
              
