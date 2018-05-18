@@ -344,7 +344,7 @@ let testGoalOrdering (grid: Grid) =
     let prevH = getPositions grid
     eprintfn "Ordering goals"
     let isMA = grid.agentPos.Count > 1
-    let goals = orderGoals grid prevH isMA boxTypeToId agentColorToId (Set.ofList (getGoals grid))
+    let goals, interdependentGoals = orderGoals grid prevH isMA boxTypeToId agentColorToId (Set.ofList (getGoals grid))
     eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
     eprintfn "Solving goals"
     solveGoals [] prevH boxTypeToId agentColorToId grid goals |> toOutput |> printOutput

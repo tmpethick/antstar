@@ -195,6 +195,35 @@ let graphSearch (p: ISokobanProblem) =
                 loop e' f''
     loop e f
 
+let rec solveIndependentGoals (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxTypeToId: Map<ObjType,Set<Guid>>) (agentColorToId: Map<Color,Set<AgentIdx>>) (orderedGoals : List<Pos * Goal>) (unsolvedGoals : Set<Pos * Goal>) = 
+    
+    let isIndependent ((goalPos, gt): Pos * Goal) = 
+        unsolvedGoals 
+        |> Set.forall (fun (goalPos', gt') -> 
+            let grid' = grid.AddWall goalPos
+
+            match graphSearch (BoxPointerProblem (grid', goalPos', gt', false, prevH, boxTypeToId.[gt'] |> Set.map (fun id -> grid'.boxPos.[id]))) with
+            | Some n -> 
+              if isMA |> not then true else
+                let boxPos = n.Head.state.searchPoint.Value
+                let boxColor =
+                  match n.Head.state.dynamicGrid.[boxPos] with
+                  | Box(_,_,c) -> Some c
+                  | _ -> None
+                match graphSearch (AgentPointerProblem (grid', boxPos, boxColor.Value, false, prevH, agentColorToId.[boxColor.Value] |> Set.map (fun id -> grid'.agentPos.[id]))) with
+                | Some _ -> true
+                | None -> false  
+            | None -> false  
+        )
+
+    if unsolvedGoals.IsEmpty
+        then orderedGoals, Set.empty
+        else match Set.toList unsolvedGoals |> List.tryFind isIndependent with
+             | Some g -> 
+                eprintfn "goal unsolved solved: %O" g
+                solveIndependentGoals grid prevH isMA boxTypeToId agentColorToId (g :: orderedGoals) (unsolvedGoals.Remove g)
+             | None -> orderedGoals, unsolvedGoals
+             
 // TODO: multiple goals can use same box. Might lead ordering with non-trivial solution.
 let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxTypeToId: Map<ObjType,Set<Guid>>) (agentColorToId: Map<Color,Set<AgentIdx>>) (orderedGoals : List<Pos * Goal>) (unsolvedGoals : Set<Pos * Goal>) = 
     // set other unsolvedGoals to walls
@@ -203,8 +232,13 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
     let isSolvableGoal ((goalPos, gt): Pos * Goal) = 
         let grid' = 
           grid
-          |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
+          // |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
           |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
+        // eprintfn "%O" (goalPos, gt)
+        // eprintfn "%O" unsolvedGoals
+        // eprintfn "%O" orderedGoals
+        // grid'.ToColorRep() |> cprintLines
+        grid.ToColorRep() |> cprintLines
 
         // printfn "%O" grid'
         match graphSearch (BoxPointerProblem (grid', goalPos, gt, false, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid'.boxPos.[id]))) with
@@ -220,11 +254,14 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
             | None -> false  
         | None -> false  
     
-    if unsolvedGoals.IsEmpty 
-        then orderedGoals
+    if unsolvedGoals.IsEmpty
+        then orderedGoals, Set.empty
         else match Set.toList unsolvedGoals |> List.tryFind isSolvableGoal with
-             | Some g -> orderGoals' grid prevH isMA boxTypeToId agentColorToId (g :: orderedGoals) (unsolvedGoals.Remove g)
-             | None -> failwith (sprintf "%A are unsolvable" unsolvedGoals)
+             | Some g -> 
+                eprintfn "goal solved: %O" g
+                orderGoals' grid prevH isMA boxTypeToId agentColorToId (g :: orderedGoals) (unsolvedGoals.Remove g)
+             | None -> 
+                solveIndependentGoals grid prevH isMA boxTypeToId agentColorToId orderedGoals unsolvedGoals
 
 let orderGoals grid prevH isMA boxTypeToId agentColorToId unsolvedGoals = 
   orderGoals' grid prevH isMA boxTypeToId agentColorToId [] unsolvedGoals
