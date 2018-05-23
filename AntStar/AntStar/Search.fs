@@ -316,26 +316,19 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
 let orderGoals grid prevH isMA boxTypeToId agentColorToId unsolvedGoals = 
   orderGoals' grid prevH isMA boxTypeToId agentColorToId [] unsolvedGoals
 
-type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest, prefix: ((Action [] * HistoryLockedPos) * Grid) []) = 
+type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) = 
     inherit ISokobanProblem<Action [] * LockedPos>()
     let numAgents = grid.agentPos.Count
     let agentInt = agentIdx |> System.Char.GetNumericValue |> int
     
-    override p.Initial = {grid with actionDepth = 0}
+    override p.Initial = grid
     override p.Actions s = 
         // Array.create agentCount NOP
-        let (action, locked), prefixState =         
-            if not (Array.isEmpty prefix)
-            then prefix.[s.actionDepth]
-            else (Array.create numAgents NOP, Set.empty), s
-        let prefixState' = {prefixState with actionDepth = prefixState.actionDepth + 1}
-        let restrictedGrid = Set.fold (fun (s'': Grid) pos -> s''.AddWall pos) prefixState' locked
-        let actions = Grid.validSokobanActions agentIdx prefixState' restrictedGrid
-    
-        List.map (fun ((a, d), g) -> 
-            let action' = Array.copy action
+        Grid.validSokobanActions agentIdx s
+        |> List.map (fun ((a, d), g) -> 
+            let action' = Array.create numAgents NOP
             Array.set action' agentInt a
-            ((action', d), g)) actions
+            ((action', d), g))
     override p.GoalTest s = goalTest agentIdx s
     override p.ChildNode n a s = 
       let child = gridToNode' n a s
@@ -350,7 +343,7 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
     let agentInt = agentIdx |> System.Char.GetNumericValue |> int
     override p.Initial = grid
     override p.Actions s =
-        Grid.validSokobanActions agentIdx s s 
+        Grid.validSokobanActions agentIdx s
         |> List.map (fun ((a, d), g) -> 
             let action' = Array.create numAgents NOP
             Array.set action' agentInt a

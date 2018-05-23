@@ -13,7 +13,6 @@ type IGrid =
   abstract searchPoint : Pos option with get
 
 type Grid     = { 
-    actionDepth : int
     staticGrid  : StaticGrid 
     dynamicGrid : DynamicGrid
     agentPos    : Map<AgentIdx, Pos>
@@ -56,12 +55,7 @@ type Grid     = {
         override g.ToString() = Grid.GridToStringTransformer (fun g -> Grid.PosToString g >> fst) g
         member g.ToColorRep() = Grid.GridToColoredStringTransformer (Grid.PosToColoredString) g
         member g.AddWall corr = 
-          let g' = 
-            match Map.find corr g.dynamicGrid with
-            | Agent a -> {g with agentPos = g.agentPos.Remove (getAgentIdx a)}
-            | Box b -> {g with boxPos = g.boxPos.Remove (getId b)}
-            | _ -> g
-          { g' with dynamicGrid = g.dynamicGrid |> Map.add corr Wall }
+          { g with dynamicGrid = g.dynamicGrid |> Map.add corr Wall }
         member g.AddBox corr (box: Box) = 
           { g with dynamicGrid = g.dynamicGrid |> Map.add corr (Box box); boxPos = Map.add (getId box) corr g.boxPos }
         member g.AddAgent corr agent = 
@@ -143,8 +137,7 @@ type Grid     = {
 
 let emptyGrid w h = 
     let coords = cartesian [0..w-1] [0..h-1]
-    {actionDepth = 0;
-     staticGrid  = new StaticGrid  (Seq.map (fun c -> c, SEmpty) coords);
+    {staticGrid  = new StaticGrid  (Seq.map (fun c -> c, SEmpty) coords);
      dynamicGrid = new DynamicGrid (Seq.map (fun c -> c, DEmpty) coords);
      agentPos    = Map.empty;
      boxPos      = Map.empty;
@@ -221,16 +214,12 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
         | _, Some (Box(_))                     -> Error PositionOccupied
         | _,_                                  -> Error NotAssociatedObject
 
-
-let filterValidDepActions grid restrictedGrid actions = 
+let filterValidActions' grid actions = 
   actions
   |> List.toArray
-  |> Array.map (fun (a, dep) -> 
-      match apply a restrictedGrid with 
-      | Success s -> 
-        match apply a grid with
-        | Success s' -> Some((a, dep),s') 
-        | Error _ -> failwith "If action can be applied in restrictedGrid it should be applicable in grid"
+  |> Array.map (fun a -> 
+      match apply (fst a) grid with 
+      | Success s -> Some(a,s) 
       | Error _   -> None)
   |> Array.filter Option.isSome
   |> Array.map Option.get
@@ -282,9 +271,10 @@ let allSokobanActions (agentIdx: AgentIdx) (grid: Grid) =
     :: cur
     ) ((NOP, nopDep) :: moves)
 
-let validSokobanActions agentIdx (grid: Grid) (restrictedGrid: Grid) =
-  allSokobanActions agentIdx restrictedGrid 
-  |> filterValidDepActions grid restrictedGrid
+
+let validSokobanActions agentIdx (grid: Grid) = 
+  allSokobanActions agentIdx grid 
+  |> filterValidActions' grid
 
 let readLines filename =
   filename

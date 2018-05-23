@@ -168,7 +168,7 @@ let getObstacleFromPath (agentColor: Color) (protectedBox: Box option) (state: G
 // pos of all DEmpty pos
 let freePos (state: Grid): Set<Pos> =
     Map.toSeq state.dynamicGrid
-    |> Seq.filter (fun (pos, t) -> t |> isWall |> not)
+    |> Seq.filter (fun (pos, t) -> match t with | DEmpty -> true | _ -> false) // TODO:? relax to isWall |> not)
     |> Seq.map fst
     |> Set.ofSeq
 
@@ -187,12 +187,6 @@ let formatPositions (g: Grid) (points: Set<Pos>) =
         else char) g
     
 let formatPath (g: Grid) (path: Pos list) = Set.ofList path |> formatPositions g
-let appendActions (a1: ActionList) (a2: ActionList): ActionList = 
-    let a1' = 
-        match a2 with        
-        | [] -> a1
-        | (_, futureLocked) :: _ -> List.map (fun (a,l) -> a, Set.union futureLocked l) a1
-    a1' @ a2
 
 let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (state: Grid): ActionList * Grid = 
     let free = freePos state
@@ -236,7 +230,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
         formatPositions grid' freePositions |> cprintLines
 
         let acts, grid'' = 
-            BFSSokobanProblem (getAgentIdx a, grid', goalTest, [||]) 
+            BFSSokobanProblem (getAgentIdx a, grid', goalTest) 
             |> graphSearch'
             |> Option.get
             |> getActionsAndResultingState'
@@ -398,8 +392,15 @@ let mergeActions startIdx (actions: (Action [] * HistoryLockedPos) []) (addition
             additionalActions, [||]
             
     let mergedMiddle = merge middle middle'
+    let tail = Array.concat [mergedMiddle; right]
 
-    Array.concat [left; mergedMiddle; right]
+    let left = 
+        if Array.isEmpty tail |> not then
+            let _, locked = tail.[0]
+            left |> Array.map (fun (a, l) -> a, Set.union l locked)
+        else left
+
+    Array.concat [left; tail]
     
 let rec solveGoals (actionsAcc: (Action [] * Set<Pos>) []) prevH boxTypeToId agentColorToId grid = function 
     | [] -> actionsAcc, grid
@@ -416,7 +417,8 @@ let rec solveGoals (actionsAcc: (Action [] * Set<Pos>) []) prevH boxTypeToId age
         let startIdx = binSearch (snd accLocked.[0]) actionsAcc
         eprintfn "Found %O" startIdx
         let actionsAcc = mergeActions startIdx actionsAcc accLocked
-        solveGoals actionsAcc prevH boxTypeToId agentColorToId grid goals 
+        // solveGoals (Array.concat [actionsAcc; accLocked]) prevH boxTypeToId agentColorToId grid goals
+        solveGoals actionsAcc prevH boxTypeToId agentColorToId grid goals
 
 let removeUnmovableBoxes (grid: Grid) (prevH: Map<Pos*Pos,int>) =
     let removedBoxes = 
