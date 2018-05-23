@@ -270,7 +270,7 @@ let rec solveIndependentGoals (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: b
         then orderedGoals, Set.empty
         else match Set.toList unsolvedGoals |> List.tryFind isIndependent with
              | Some g -> 
-                eprintfn "goal unsolved solved: %O" g
+                // eprintfn "goal unsolved solved: %O" g
                 solveIndependentGoals grid prevH isMA boxTypeToId agentColorToId (orderedGoals @ [g]) (unsolvedGoals.Remove g)
              | None -> orderedGoals, unsolvedGoals
              
@@ -315,14 +315,6 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
 
 let orderGoals grid prevH isMA boxTypeToId agentColorToId unsolvedGoals = 
   orderGoals' grid prevH isMA boxTypeToId agentColorToId [] unsolvedGoals
-
-let accLockedFields (prefix: (Action [] * LockedPos) list): LockedPos list = 
-    prefix
-    |> List.map snd
-    |> List.rev
-    |> List.scan Set.union Set.empty
-    |> List.tail
-    |> List.rev
 
 type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest, prefix: ((Action [] * HistoryLockedPos) * Grid) []) = 
     inherit ISokobanProblem<Action [] * LockedPos>()

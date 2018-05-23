@@ -6,11 +6,11 @@ runall:
 
 runonfile:
 	MSBuild AntStar/AntStar/AntStar.fsproj /p:Configuration=Release;Targets=Clean
-	echo "$$(cat AntStar/AntStar/levels/competition_levels/SAdashen.lvl)\n" | dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll 
+	echo "$$(cat AntStar/AntStar/levels/competition_levels/MAbAnAnA.lvl)\n" | dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll 
 
 runonserver:
 	MSBuild AntStar/AntStar/AntStar.fsproj /p:Configuration=Release;Targets=Clean
-	java -jar environment/server.jar -g 300 -c"dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll" -l AntStar/AntStar/levels/competition_levels/SAdashen.lvl
+	java -jar environment/server.jar -g 300 -c"dotnet AntStar/AntStar/bin/Release/netcoreapp2.0/AntStar.dll" -l AntStar/AntStar/levels/competition_levels/MAbAnAnA.lvl
 
 runSAtests:
 	./antstar.sh "AntStar/AntStar/levels/competition_levels/SA*.lvl"

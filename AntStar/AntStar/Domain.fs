@@ -134,6 +134,7 @@ let cprintf c bg fmt =
 
 let cprintLines (coloredLines: ColoredLines): unit =
   coloredLines 
+  // |> ignore
   |> Array.iter (fun lines -> 
       lines |> Array.iter (fun line -> cprintf line.color line.background "%O" line.text)
       eprintfn "")
