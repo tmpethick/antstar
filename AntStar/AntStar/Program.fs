@@ -315,31 +315,6 @@ let getUnsolvedGoals (expectedSolvedGoals: Set<Pos * Goal>) (grid: Grid) =
         )
     Set.ofList missing
 
-let solveInterdependentGoal (solvedGoalsAcc: Set<Pos * Goal>) (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agentColorToId grid: ActionList * Grid * Set<Pos * Goal> = 
-        let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid
-        let boxType = (getType box).ToString().ToUpper()
-        // eprintfn "Path cleared for %O, %O, %O" goal boxType (getAgentIdx agent)
-        // eprintfn "with pos: %O" goalPos
-
-        let nextGoalPos =  
-          match goals with
-          | [] -> None
-          | x::xs -> 
-            x |> fst |> Some
-
-        match new AStarSokobanProblem ((goalPos,None), getId box, getAgentIdx agent, grid', prevH) |> graphSearch' with
-        | Some [] ->
-          actions,grid', Set.empty
-        | Some solution ->
-            // solution.Head.state.ToColorRep() |> cprintLines
-            let actions, grid = getActionsAndResultingState' solution
-            let unsolvedGoals = getUnsolvedGoals solvedGoalsAcc grid
-            actions, grid, unsolvedGoals
-        | None -> 
-            // eprintfn "%O %O" (getAgentIdx agent) goalPos
-            // grid'.ToColorRep() |> cprintLines
-            failwith "come on"
-
 let accLockedFields (prefix: (Action [] * LockedPos) list): (Action [] * HistoryLockedPos) list = 
     prefix
     |> List.map snd
@@ -427,26 +402,6 @@ let removeUnmovableBoxes (grid: Grid) (prevH: Map<Pos*Pos,int>) =
         ) grid.dynamicGrid
     {grid with dynamicGrid = removedBoxes}
 
-let rec solveInterdependentGoals solvedGoalsAcc actionsAcc prevH boxTypeToId agentColorToId gridAcc (interdependentGoals: Set<Pos * Goal>) =  
-    if Set.isEmpty interdependentGoals 
-    then actionsAcc, gridAcc
-    else
-        let goal = Set.minElement interdependentGoals
-        let remainingGoals = Set.remove goal interdependentGoals
-        let remainingGoalList = Set.toList remainingGoals
-        // eprintfn "Solving %O" goal
-        // eprintfn "interdependentGoals %O" interdependentGoals
-        // eprintfn "Solved goals %O" solvedGoalsAcc
-        let actions', gridAcc', unsolvedGoals = 
-            solveInterdependentGoal solvedGoalsAcc goal remainingGoalList prevH boxTypeToId agentColorToId gridAcc
-        // eprintfn "Unsolved %O" unsolvedGoals
-        let remainingGoals' = Set.union remainingGoals unsolvedGoals
-        let solvedGoalsAcc' = 
-            solvedGoalsAcc
-            |> Set.add goal 
-            |> (flip (Set.fold (flip Set.remove))) unsolvedGoals // remove all unsolved from solved
-        solveInterdependentGoals solvedGoalsAcc' (actionsAcc @ actions') prevH boxTypeToId agentColorToId gridAcc' remainingGoals' 
-
 let testGoalOrdering (grid: Grid) = 
     //eprintfn "Mapping types to positions"
     let boxTypeToId =
@@ -488,10 +443,12 @@ let testGoalOrdering (grid: Grid) =
     // eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
     // eprintfn "Solving goals"
     let actions, grid = solveGoals [||] prevH boxTypeToId agentColorToId grid goals
-    let actions', grid = solveInterdependentGoals Set.empty [] prevH boxTypeToId agentColorToId grid interdependentGoals
-    let actions = Array.concat [actions; List.toArray actions']
-    let actions = makeConcurrent actions
-    actions |> Array.map fst |> toOutput |> printOutput
+    
+    actions 
+    |> makeConcurrent 
+    |> Array.map fst 
+    |> toOutput 
+    |> printOutput
 
 let isOfTypeIfBox gt d = (((not << isBox) d) || (isBoxOfType gt d))
 
