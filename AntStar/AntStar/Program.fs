@@ -363,55 +363,15 @@ let binSearch<'a when 'a: comparison> (target: Set<'a>) (arr: (Action [] * Set<'
         else currentBest
     binSearch' None 0 (Array.length arr - 1)
 
-let mergeActions startIdx (actions: (Action [] * HistoryLockedPos) []) (additionalActions: (Action [] * HistoryLockedPos) []) =
-    let mergeAction (a1: Action []) (a2: Action []) = 
+let mergeAction startIdx (actions: (Action [] * HistoryLockedPos) []) (action: ActionMeta) =
+    let mergeActions (a1: Action []) (a2: Action []) = 
         Array.zip a1 a2
         |> Array.map (fun (a1,a2) -> 
             match a1 with
             | NOP -> a2
             | v -> v)
 
-    /// Assumes a is bigger than b
-    let merge (a: (Action [] * HistoryLockedPos) []) (b: (Action [] * HistoryLockedPos) []) = 
-        let left, right = Array.splitAt b.Length a
-        let left = left
-                    |> Array.zip b
-                    |> Array.map (fun ((a1,l1),(a2,l2)) -> 
-                        (mergeAction a1 a2), Set.union l1 l2)
-        Array.concat [left; right]
-
-    let left, middle = 
-        match startIdx with
-        | Some idx -> Array.splitAt idx actions
-        | None     -> actions, [||]
-    
-    let middle', right = 
-        if additionalActions.Length > middle.Length then 
-            Array.splitAt middle.Length additionalActions
-        else 
-            additionalActions, [||]
-            
-    let mergedMiddle = merge middle middle'
-    let tail = Array.concat [mergedMiddle; right]
-
-    let left = 
-        if Array.isEmpty tail |> not then
-            let _, locked = tail.[0]
-            left |> Array.map (fun (a, l) -> a, Set.union l locked)
-        else left
-
-    Array.concat [left; tail]
-
-let mergeInAction startIdx (actions: (Action [] * HistoryLockedPos) []) (action: ActionMeta) =
-    let mergeAction (a1: Action []) (a2: Action []) = 
-        Array.zip a1 a2
-        |> Array.map (fun (a1,a2) -> 
-            match a1 with
-            | NOP -> a2
-            | v -> v)
-
-    /// Assumes a is bigger than b
-    let mergeActionMeta (a1,l1) (a2,l2) = (mergeAction a1 a2), Set.union l1 l2
+    let mergeActionMeta (a1,l1) (a2,l2) = (mergeActions a1 a2), Set.union l1 l2
 
     let left, right = 
         match startIdx with
@@ -429,34 +389,20 @@ let mergeInAction startIdx (actions: (Action [] * HistoryLockedPos) []) (action:
         left |> Array.map (fun (a, l) -> a, Set.union l locked)
 
     Array.concat [left; [|middle|]; right]
- 
-let makeConcurrent' actionsAcc action = 
-        let startIdx = binSearch (snd action) actionsAcc
-        mergeInAction startIdx actionsAcc action
 
-let makeConcurrent actions = Array.fold makeConcurrent' [||] actions
+let makeConcurrent actions = 
+    let merge actionsAcc action =
+        let startIdx = binSearch (snd action) actionsAcc
+        mergeAction startIdx actionsAcc action
+    Array.fold merge [||] actions
 
 let rec solveGoals (actionsAcc: (Action [] * Set<Pos>) []) prevH boxTypeToId agentColorToId grid = function 
     | [] -> actionsAcc, grid
     | goal :: goals -> 
         let actions, grid = solveGoal goal goals prevH boxTypeToId agentColorToId grid
 
-        // let accLocked = actions |> accLockedFields |> List.toArray
-        // eprintfn "everything locked"
-        // formatPositions grid (Array.map snd accLocked).[0] |> cprintLines
-        // eprintfn "everything locked in array"
-        // if actionsAcc.Length > 0 then
-        //     formatPositions grid (Array.map snd actionsAcc).[0] |> cprintLines
-        //     formatPositions grid (Array.map snd actionsAcc).[actionsAcc.Length - 1] |> cprintLines
-        // else ()
-        // let startIdx = binSearch (snd accLocked.[0]) actionsAcc
-        // eprintfn "Found %O" startIdx
-        // let actionsAcc = mergeActions startIdx actionsAcc accLocked
-        // solveGoals actionsAcc prevH boxTypeToId agentColorToId grid goals
-
         let accLocked = actions |> List.toArray
         solveGoals (Array.concat [actionsAcc; accLocked]) prevH boxTypeToId agentColorToId grid goals
-
 
 let removeUnmovableBoxes (grid: Grid) (prevH: Map<Pos*Pos,int>) =
     let removedBoxes = 
@@ -480,7 +426,6 @@ let removeUnmovableBoxes (grid: Grid) (prevH: Map<Pos*Pos,int>) =
             | _ -> s
         ) grid.dynamicGrid
     {grid with dynamicGrid = removedBoxes}
-
 
 let rec solveInterdependentGoals solvedGoalsAcc actionsAcc prevH boxTypeToId agentColorToId gridAcc (interdependentGoals: Set<Pos * Goal>) =  
     if Set.isEmpty interdependentGoals 
