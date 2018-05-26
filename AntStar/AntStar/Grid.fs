@@ -90,6 +90,13 @@ type Grid     = {
             | Some (Agent(t,c)) -> Success (t,c)
             | Some (_)
             | None -> Error AgentNotOnMap
+        member g.GetUnsolvedGoals () = 
+            g.GetGoals ()
+            |> Set.filter (fun (pos, gt) -> 
+              match Map.tryFind pos g.dynamicGrid with
+              | Some o -> not (isBoxOfType gt o)
+              | None -> true)
+
         member g.GetGoals () = 
             g.staticGrid
             |> Map.toList
@@ -99,6 +106,7 @@ type Grid     = {
                 | SEmpty -> None)
             |> List.filter Option.isSome
             |> List.map Option.get
+            |> Set.ofList
         member inline g.RemoveAgents () = 
             let removeAgent pos = function | Agent _ -> DEmpty | a -> a
             {g with

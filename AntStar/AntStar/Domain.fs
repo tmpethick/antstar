@@ -13,6 +13,7 @@ type DynamicObject = Agent of Agent | Box of Box | Wall | DEmpty
 let getId ((id,_,_): Box) = id
 let getType ((_,t,_): Box) = t
 let getBoxColor ((_,_,color): Box) = color
+let isBoxOfType t = function | Box (_,t', _) -> t' = t | _ -> false
 
 let getAgentIdx (idx,_) = idx
 let getAgentColor (_,color) = color
