@@ -60,7 +60,7 @@ let root (p: Problem<'s,'a>): Node<'s,'a> =
 
 type SearchQueue<'s,'a when 's: comparison> = 
     {q: IPriorityQueue<Node<'s,'a>>; m: Map<'s,Node<'s,'a>> }
-    static member empty = {q = PriorityQueue.empty false; m = Map.empty; }
+    static member empty: SearchQueue<'s,'a> = {q = PriorityQueue.empty false; m = Map.empty; }
     member pq.IsEmpty = pq.q.IsEmpty
     member pq.Pop = let el, q' = PriorityQueue.pop pq.q
                     el, {pq with q = q'; m = pq.m.Remove el.state}
@@ -70,17 +70,6 @@ type SearchQueue<'s,'a when 's: comparison> =
     member pq.TryFind state = pq.m.TryFind state
     member pq.Length = pq.q.Length
 
-type SearchQueue'<'s,'a when 's: comparison> = 
-    {q: IPriorityQueue<Node<'s,'a>>; m: Map<'s,Node<'s,'a>> }
-    static member empty = {q = PriorityQueue.empty false; m = Map.empty; }
-    member pq.IsEmpty = pq.q.IsEmpty
-    member pq.Pop = let el, q' = PriorityQueue.pop pq.q
-                    el, {pq with q = q'; m = pq.m.Remove el.state}
-    member pq.Insert el = {pq with q = PriorityQueue.insert el pq.q;
-                                  m = pq.m.Add (el.state, el)}
-    member pq.Contains state = pq.m.ContainsKey state
-    member pq.TryFind state = pq.m.TryFind state
-    member pq.Length = pq.q.Length
 
 [<AbstractClass>]
 type ISokobanProblem<'a> () =
@@ -179,11 +168,11 @@ let rec retrieveSolution (n: Node<'s,'a>) =
     | None    -> []
     | Some n' -> n :: retrieveSolution n'
 
-let graphSearch' (p: ISokobanProblem<Action [] * LockedPos>) = 
-    let initialEl = root p
-    let f = (SearchQueue'<Grid,Action []>.empty).Insert initialEl
+let graphSearch<'a> (p: ISokobanProblem<'a>) = 
+    let initialEl: Node<Grid,'a> = root p
+    let f: SearchQueue<Grid,'a> = (SearchQueue<Grid,'a>.empty).Insert initialEl
     let e: Set<Grid> = Set.empty
-    let rec loop (e: Set<Grid>) (f: SearchQueue'<Grid,Action [] * LockedPos>) = 
+    let rec loop (e: Set<Grid>) (f: SearchQueue<Grid,'a>) = 
         // let frontierStates = Map.map (fun s n -> n.state) f.m
         // printfn "%O" frontierStates
         // eprintfn "Size of explored: %O\n" e.Count
@@ -199,40 +188,7 @@ let graphSearch' (p: ISokobanProblem<Action [] * LockedPos>) =
                 Some (retrieveSolution n)
             else 
                 let e' = e.Add n.state
-                let f'' = p.Actions n.state |> List.fold (fun (f'': SearchQueue'<Grid,Action [] * LockedPos>) (a,s) ->
-                    let c = p.ChildNode n a s
-                    let isNew = not ((e'.Contains c.state) || (f''.Contains c.state))
-                    let isCheaper = 
-                        match f''.TryFind c.state with
-                        | Some n -> n.value > c.value
-                        | None -> false
-                    if isNew || isCheaper 
-                    then f''.Insert c
-                    else f'') f'
-                loop e' f''
-    loop e f
-
-let graphSearch (p: ISokobanProblem<Action []>) = 
-    let initialEl: Node<Grid,Action []> = root p
-    let f: SearchQueue<Grid,Action []> = (SearchQueue<Grid,Action []>.empty).Insert initialEl
-    let e: Set<Grid> = Set.empty
-    let rec loop (e: Set<Grid>) (f: SearchQueue<Grid,Action []>) = 
-        // let frontierStates = Map.map (fun s n -> n.state) f.m
-        // printfn "%O" frontierStates
-        // eprintfn "Size of explored: %O\n" e.Count
-        // eprintfn "Size of frontier: %O\n" f.Length
-        if f.IsEmpty
-        then None
-        else 
-            let n, f' = f.Pop
-            // n.state.ToColorRep() |> cprintLines
-            // eprintfn "at %O" n.state.searchPoint.Value
-            if p.GoalTest n.state
-            then 
-                Some (retrieveSolution n)
-            else 
-                let e' = e.Add n.state
-                let f'' = p.Actions n.state |> List.fold (fun (f'': SearchQueue<Grid,Action []>) (a,s) ->
+                let f'' = p.Actions n.state |> List.fold (fun (f'': SearchQueue<Grid,'a>) (a,s) ->
                     let c = p.ChildNode n a s
                     let isNew = not ((e'.Contains c.state) || (f''.Contains c.state))
                     let isCheaper = 

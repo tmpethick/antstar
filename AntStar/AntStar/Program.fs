@@ -207,7 +207,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
             freePositions.Contains agentPos && freePositions.Contains boxPos
 
         let box, agent, (grid', actions) = createClearPathFromBox prevH agentColorToId (box, boxPos) [] state
-        match new AStarSokobanProblem (getId box, getAgentIdx agent, grid', prevH, goalTest) |> graphSearch' with
+        match new AStarSokobanProblem (getId box, getAgentIdx agent, grid', prevH, goalTest) |> graphSearch with
         | Some solution -> 
             let acts, s = getActionsAndResultingState' solution
             actions @ acts, s
@@ -231,7 +231,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
 
         let acts, grid'' = 
             BFSSokobanProblem (getAgentIdx a, grid', goalTest) 
-            |> graphSearch'
+            |> graphSearch
             |> Option.get
             |> getActionsAndResultingState'
         actions @ acts, grid''
@@ -296,7 +296,7 @@ let solveGoal (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agent
             
             x |> fst |> Some
 
-        match new AStarSokobanProblem ((goalPos,nextGoalPos), getId box, getAgentIdx agent, grid', prevH) |> graphSearch' with
+        match new AStarSokobanProblem ((goalPos,nextGoalPos), getId box, getAgentIdx agent, grid', prevH) |> graphSearch with
         | Some [] ->
           actions,grid'
         | Some solution ->
