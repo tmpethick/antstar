@@ -187,6 +187,8 @@ let graphSearch<'a> (p: ISokobanProblem<'a>) =
             // eprintfn "at %O" n.state.searchPoint.Value
             if p.GoalTest n.state
             then 
+                // eprintfn "Size of explored: %O\n" e.Count
+                // eprintfn "Size of frontier: %O\n" f'.Length
                 Some (retrieveSolution n)
             else 
                 let e' = e.Add n.state
@@ -234,13 +236,14 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
         | None -> false  
     
     if unsolvedGoals.IsEmpty
-        then orderedGoals, Set.empty
+        then orderedGoals
         else match Set.toList unsolvedGoals |> List.tryFind isSolvableGoal with
              | Some g -> 
                 // eprintfn "goal solved: %O" g
                 orderGoals' grid prevH isMA boxTypeToId agentColorToId (g :: orderedGoals) (unsolvedGoals.Remove g)
              | None -> 
-                failwith "no order"
+                // failwith "no order"
+                (Set.toList unsolvedGoals) @ orderedGoals
 
 let orderGoals grid prevH isMA boxTypeToId agentColorToId unsolvedGoals = 
   orderGoals' grid prevH isMA boxTypeToId agentColorToId [] unsolvedGoals

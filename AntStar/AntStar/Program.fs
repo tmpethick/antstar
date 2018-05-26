@@ -189,7 +189,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
         let boxPos = pos
 
         let boxType = (getType box).ToString().ToUpper()
-        //eprintfn "Solving obstacle %O at %O" boxType boxPos
+        // eprintfn "Solving obstacle %O at %O" boxType boxPos
         // formatPositions state freePositions |> cprintLines
 
         let goalTest agentIdx s = 
@@ -201,6 +201,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
         match new AStarSokobanProblem (getId box, getAgentIdx agent, grid', prevH, goalTest) |> graphSearch with
         | Some solution -> 
             let acts, s = getActionsAndResultingState' solution
+            // s.ToColorRep () |> cprintLines
             actions @ acts, s
         | None -> failwith "come on"
     | Agent a -> 
@@ -210,7 +211,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
 
         let goalTest agentIdx s = 
             let agentPos = Map.find agentIdx s.agentPos
-            let onGoal = 
+            let onGoal =
                 match Map.find agentPos s.staticGrid with
                 | Goal _ -> true
                 | _ -> false
@@ -256,7 +257,7 @@ and clearPath (prevH: Map<(Pos * Pos),int>) (agentColorToId: Map<Color,Set<Agent
         match getObstacleFromPath (getAgentIdx agent) box gridAcc solutionPath with
         | Some obstacle -> 
             let obsActionSolution, gridAcc' = solveObstacle prevH agentColorToId (solutionSet) obstacle gridAcc
-            //eprintfn "After removing obstacle"
+            // eprintfn "After removing obstacle"
             // gridAcc'.ToColorRep() |> cprintLines
             clearPath' gridAcc' (solutionAcc @ obsActionSolution)
         | None -> 
@@ -432,7 +433,7 @@ let testGoalOrdering (grid: Grid) =
     //eprintfn "Ordering goals"
     let isMA = grid.agentPos.Count > 1
 
-    let goals, _ = orderGoals grid prevH isMA boxTypeToId agentColorToId (grid.GetGoals ())
+    let goals = orderGoals grid prevH isMA boxTypeToId agentColorToId (grid.GetGoals ())
     // eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
     // eprintfn "Solving goals"
     let actions, grid = solveGoals prevH boxTypeToId agentColorToId grid goals
