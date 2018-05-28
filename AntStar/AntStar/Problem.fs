@@ -27,8 +27,7 @@ let pickAgent ((boxPos, boxColor): Pos * Color) (prevH: Map<Pos*Pos,int>) (agent
         match Map.find agentPos state.dynamicGrid with
         | Agent agent -> (agent, agentPos), List.map (fun n -> n.state.searchPoint.Value) s
         | _ -> failwith "search should always lead to an agent..." 
-    | None -> // grid.ToColorRep () |> cprintLines
-              failwith "NoBoxToAgentPathFound"
+    | None -> failwith "NoBoxToAgentPathFound"
 
 // Its an obstacle if the agent cannot remove it itself
 let getObstacleFromPath (agentIdx: AgentIdx) (protectedBox: Box option) (state: Grid) (path: Pos list): Pos option = 
@@ -57,15 +56,14 @@ let getActionsAndResultingState' (solution: Node<Grid,ActionMeta> list): (Action
     let actions = List.map (fun n -> n.action) solution |> List.rev
     actions, solution.Head.state
 
-let rec clearObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (state: Grid): ActionList * Grid = 
-    let freePositions = 
-      reservedPath
-      |> Set.difference (freePos state) 
+let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (state: Grid): ActionList * Grid = 
+    let free = freePos state
+    let freePositions = Set.intersect free reservedPath
+                        |> Set.difference free
 
     match Map.find pos state.dynamicGrid with
     | Box box -> 
         let boxPos = pos
-
         let goalTest agentIdx s = 
             let agentPos = Map.find agentIdx s.agentPos
             let boxPos = Map.find (getId box) s.boxPos
@@ -77,7 +75,7 @@ let rec clearObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
             let acts, s = getActionsAndResultingState' solution
             actions @ acts, s
         | None -> failwith "come on"
-    | Agent a -> 
+    | Agent a ->
         let goalTest s = 
             let agentPos = pos
             let onGoal =
@@ -96,8 +94,7 @@ let rec clearObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
         actions @ acts, grid''
 
     | _ -> failwith "Pos should contain Box or Agent obstacle"
-
-// boxPos and agentPos might change during the recursion.. which is not intended
+    
 and createClearPathFromBox prevH (agentColorToId: Map<Color,Set<AgentIdx>>) (box, boxPos) goalPath grid = 
     let (agent, _), boxPath = pickAgent (boxPos, getBoxColor box) prevH agentColorToId grid
     let solutionPath = boxPath @ goalPath |> List.tail // Drops Agent pos
@@ -109,7 +106,6 @@ and createClearPathForAgent prevH agentColorToId agent freeSpots grid =
         match FreeSpotPointerProblem (grid, agentPos, freeSpots) |> graphSearch with
         | Some s -> List.map (fun n -> n.state.searchPoint.Value) s
         | None -> failwith "could not clear agent"
-
     clearPath prevH agentColorToId agent None agentPath grid
     
 and clearPath (prevH: Map<(Pos * Pos),int>) (agentColorToId: Map<Color,Set<AgentIdx>>) agent (box: Box option) solutionPath grid =
@@ -117,7 +113,7 @@ and clearPath (prevH: Map<(Pos * Pos),int>) (agentColorToId: Map<Color,Set<Agent
     let rec clearPath' gridAcc solutionAcc = 
         match getObstacleFromPath (getAgentIdx agent) box gridAcc solutionPath with
         | Some obstacle -> 
-            let obsActionSolution, gridAcc' = clearObstacle prevH agentColorToId (solutionSet) obstacle gridAcc
+            let obsActionSolution, gridAcc' = solveObstacle prevH agentColorToId (solutionSet) obstacle gridAcc
             clearPath' gridAcc' (solutionAcc @ obsActionSolution)
         | None -> 
             gridAcc, solutionAcc
@@ -128,9 +124,9 @@ and createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid =
     let (box, boxPos), goalPath = pickBox (goalPos, goal) prevH boxTypeToId grid
     createClearPathFromBox prevH agentColorToId (box, boxPos) goalPath grid
 
-
 let solveGoal (goalPos, goal) prevH boxTypeToId agentColorToId grid : ActionList * Grid = 
-        let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid   
+        let box, agent, (grid', actions) = createClearPath prevH boxTypeToId agentColorToId (goalPos, goal) grid
+        
         let nextGoalPos =  None
 
         match new AStarSokobanProblem ((goalPos,nextGoalPos), getId box, getAgentIdx agent, grid', prevH) |> graphSearch with

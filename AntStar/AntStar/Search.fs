@@ -23,24 +23,6 @@ let findAdjecent (predicate: DynamicObject -> bool) (pos: Pos) (grid: Grid) : (P
                      | _ -> false)
     |> Option.map (function | (p, Some o) -> (p, o) | _ -> failwith "expected DynamicObject to be Some")
 
-// let pickBox ((goalPos, objtype): Pos * Goal) (grid: Grid): Context<Pos * Box> = 
-//    let agent = defaultAgent
-//    let grid' = grid
-//                |> Grid.removeAgents
-//                |> Grid.addAgent goalPos agent
-//    let isGoal g = 
-//            let agentPos = getAgentPos g
-//            Option.isSome (findAdjecent (isBoxOfType objtype) agentPos g)
-//    match graphSearch (SokobanProblem (grid', goalPos, objtype)) with
-//    | None -> Error NoGoalToBoxPathFound
-//    | Some solution -> 
-//        let endState = (List.head solution).state
-//        let agentPos = getAgentPos endState
-//        match findAdjecent (isBoxOfType objtype) agentPos endState with
-//        | Some (pos, Box b) -> Success (pos, b)
-//        | _ -> failwith "If a solution is found a box MUST be adjecent. Otherwise you're in dead trouble."
-
-
 [<AbstractClass>]
 type Problem<'s, 'a> () =
    abstract Initial : 's
@@ -237,7 +219,6 @@ type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) =
     
     override p.Initial = grid
     override p.Actions s = 
-        // Array.create agentCount NOP
         Grid.validSokobanActions agentIdx s
         |> List.map (fun ((a, d), g) -> 
             let action' = Array.create numAgents NOP
@@ -246,10 +227,14 @@ type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) =
     override p.GoalTest s = goalTest s
     override p.ChildNode n a s = 
       let child = gridToNode' n a s
-      {child with value = child.cost}
+      let additionalCost =
+        match (fst a).[agentInt] with
+        | Push _ | Pull _ -> 1
+        | _ -> 0
+      let cost = child.cost + additionalCost
+      {child with value = cost; cost = cost}
     override p.initialAction () = Array.create numAgents NOP, Set.empty
-
-// AStarSokobanProblem(boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest)
+    
 type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest, heuristicTransformer) =
     inherit ISokobanProblem<ActionMeta>()
 
@@ -272,7 +257,6 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
         let node = gridToNode' n a s
         let h = 8*agentH
         {node with value = node.cost + heuristicTransformer boxPos h }
-        //{node with value = node.cost + manhattanDistance goalPos boxPos + manhattanDistance boxPos agentPos}
     override p.initialAction () = Array.create numAgents NOP, Set.empty
 
     /// Heuristic search with goal.

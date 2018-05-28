@@ -42,7 +42,7 @@ type Grid     = {
             match Map.find (i,j) g.dynamicGrid with
             | Agent (t, c) -> t.ToString(), toConsoleColor c
             | Wall         -> "+", ConsoleColor.Black
-            | Box (id,t, c)-> t.ToString().ToUpper(), toConsoleColor c
+            | Box (_,t, c)-> t.ToString().ToUpper(), toConsoleColor c
             | DEmpty       -> 
               match Map.find (i,j) g.staticGrid with
               | Goal t -> t.ToString().ToLower(), ConsoleColor.Black
