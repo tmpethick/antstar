@@ -26,6 +26,21 @@ type LockedPos = Set<Pos>
 type HistoryLockedPos = Set<Pos>
 type StaticGrid  = Map<Pos, StaticObject>
 type DynamicGrid = Map<Pos, DynamicObject>
+type Desire =
+  | FindBox of Pos * Goal
+  | FindAgent of Pos * ObjType * Color
+  | MoveAgent of Pos * AgentIdx * (Pos list)
+  | MoveBox of Pos * Guid * (Pos list)
+  | IsGoal
+type Dir = N | E | S | W
+type Action = 
+  | NOP 
+  | Move of AgentIdx * Dir 
+  | Push of AgentIdx * Dir * Dir 
+  | Pull of AgentIdx * Dir * Dir
+  | MovePointer of Dir
+type ActionMeta = Action [] * LockedPos
+type ActionList = ActionMeta list
 
 type Errors =
   // Action errors
@@ -41,17 +56,12 @@ type Errors =
   // Search errors
   | NoGoalToBoxPathFound
   | NoBoxToAgentPathFound
-  
+  // Default errors
+  | BooleanConditionFalse
 type Context<'a> =
   | Success of 'a
   | Error of Errors
 
-type Desire =
-  | FindBox of Pos * Goal
-  | FindAgent of Pos * ObjType * Color
-  | MoveAgent of Pos * AgentIdx * (Pos list)
-  | MoveBox of Pos * Guid * (Pos list)
-  | IsGoal
 
 let getDesireCost = function
   | FindBox(_) -> 10
@@ -60,16 +70,40 @@ let getDesireCost = function
   | MoveBox(_) -> 20
   | IsGoal -> 0
 
-type Dir = N | E | S | W
-type Action = 
-  | NOP 
-  | Move of AgentIdx * Dir 
-  | Push of AgentIdx * Dir * Dir 
-  | Pull of AgentIdx * Dir * Dir
-  | MovePointer of Dir
+  
+/// Use argument and pass it along
+let (|>>) x g = g x; x
+/// Option binder
+let (?>>) m f = Option.bind f m
+/// Option mapper
+let (?|>) m f = Option.map f m
+/// Option checker
+let (?>>?) m c = Option.bind (fun x -> match c x with | true -> Some x | false -> None) m
+/// Option default argument
+let (?|) = defaultArg
 
-let (|?????>) m f = match m with Some x -> f x | None -> None
-let (|?>) m f = match m with Success x ->  f x | Error e -> Error e 
+/// Context binder
+let (!>>) m f = 
+  match m with
+  | Success x -> f x
+  | Error x -> Error x
+/// Context mapper
+let (!|>) m f = 
+  match m with
+  | Success x -> Success (f x)
+  | Error x -> Error x
+/// Context checker
+let (!>>?) (m: Context<'a>) (c: 'a -> bool) : Context<'a> =
+  (!>>) m (fun x -> match c x with | true -> Success x | false -> Error BooleanConditionFalse)
+/// Context default argument
+let (!|) m arg =
+  match m with
+  | Success x -> x
+  | Error _ -> arg
+
+let unWrap = function
+    | Success s -> s
+    | Error _ -> failwith "nooooo"
 let flip f a b = f b a
 
 
@@ -134,8 +168,7 @@ let cprintf c bg fmt =
         fmt
 
 let cprintLines (coloredLines: ColoredLines): unit =
-  coloredLines 
-  // |> ignore
+  coloredLines
   |> Array.iter (fun lines -> 
       lines |> Array.iter (fun line -> cprintf line.color line.background "%O" line.text)
       eprintfn "")

@@ -3,6 +3,7 @@ open System.IO
 open System.Text.RegularExpressions
 open System
 open Domain
+open System.Collections.Generic
 
 [<Interface>]
 type IGrid =
@@ -17,7 +18,6 @@ type Grid     = {
     dynamicGrid : DynamicGrid
     agentPos    : Map<AgentIdx, Pos>
     boxPos      : Map<Guid, Pos>
-    desires     : List<Desire>
     searchPoint : Pos option
     width  : int
     height : int } with 
@@ -84,7 +84,7 @@ type Grid     = {
         member g.GetAgent agentIdx =
           g.agentPos
           |> Map.tryFind agentIdx
-          |?????> flip Map.tryFind g.dynamicGrid
+          ?>> flip Map.tryFind g.dynamicGrid
           |> fun x ->
             match x with
             | Some (Agent(t,c)) -> Success (t,c)
@@ -133,23 +133,12 @@ type Grid     = {
         static member inline addAgent pos agent (g:Grid) = g.AddAgent pos agent
         static member inline removeAgents (g: Grid) = g.RemoveAgents ()
 
-// Problem: 
-// type Dep = Set<Pos>
-// actionHistory: (Action, Dep) list
-// getActions:
-//  apply action history
-//  s.addWall for all Set<Pos>. then apply
-// (search all the way to the end)
-
-// 
-
 let emptyGrid w h = 
     let coords = cartesian [0..w-1] [0..h-1]
     {staticGrid  = new StaticGrid  (Seq.map (fun c -> c, SEmpty) coords);
      dynamicGrid = new DynamicGrid (Seq.map (fun c -> c, DEmpty) coords);
      agentPos    = Map.empty;
      boxPos      = Map.empty;
-     desires = [];
      searchPoint = None;
      width       = w;
      height      = h}
@@ -196,23 +185,22 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
     | Some curAPos -> 
       let newAPos = posFromDir ad curAPos
       let newBPos = posFromDir bd newAPos
-      grid.GetAgent a
-      |?> fun (_,c') -> 
+      let blu = fun (_,c') -> 
         match grid.dynamicGrid.TryFind newAPos, grid.dynamicGrid.TryFind newBPos with
         | Some (Box(_,_,c)),Some DEmpty when c=c' -> 
-            grid.MoveBox newAPos newBPos
-           |?> fun grid' -> Success (grid'.MoveAgent a newAPos)
+           let ble (grid': Grid) = grid'.MoveAgent a newAPos
+           (!|>) (grid.MoveBox newAPos newBPos) ble
         | Some (Box(_)),Some DEmpty           -> Error ColorMismatch
         | Some (Box(_)),_                     -> Error PositionOccupied
         | _,_                                 -> Error NotAssociatedObject
+      (!>>) (grid.GetAgent a) blu
   | Pull(a,ad,bd) ->
     match Map.tryFind a grid.agentPos with
     | None   -> Error AgentNotOnMap
     | Some curAPos -> 
       let newAPos = posFromDir ad curAPos
       let curBPos = posFromDir bd curAPos
-      grid.GetAgent a
-      |?> fun (_,c') -> 
+      let bla = (fun (_,c') -> 
         match grid.dynamicGrid.TryFind newAPos, grid.dynamicGrid.TryFind curBPos with
         | None, _ |  _, None                     -> Error OutOfBounds 
         | Some DEmpty, Some (Box(_,_,c)) when c=c' ->
@@ -220,7 +208,8 @@ let apply (action: Domain.Action) (grid: Grid) : Context<Grid> =
           |> fun grid' -> (grid'.MoveBox curBPos curAPos)
         | Some DEmpty, Some (Box(_))           -> Error ColorMismatch
         | _, Some (Box(_))                     -> Error PositionOccupied
-        | _,_                                  -> Error NotAssociatedObject
+        | _,_                                  -> Error NotAssociatedObject)
+      (!>>) (grid.GetAgent a) bla
 
 let filterValidActions' grid actions = 
   actions
@@ -349,25 +338,6 @@ let parseMap colorMap (lines: list<int * string>) : Grid =
         ) grid
     ) (emptyGrid w h)
 
-//let isGoal (grid: Grid) =
-//  match grid.desires.Head, grid.searchPoint with
-//  | (FindAgent(_,(objType,c)),Some p) ->
-//    match grid.dynamicGrid.TryFind p with
-//    | None -> false
-//    | Some (Agent(aId, c')) -> 
-//      c = c'
-//  | _ -> false
-  
-let rec getPositions curDesire positions (n: Node<Grid,Action>) =
-  if curDesire <> n.state.desires.Head then positions else
-  match n.parent with
-  | Some n' ->
-    match n.state.searchPoint with
-    | Some p -> getPositions curDesire (p :: positions) n'
-    | None -> positions // return error
-  | None -> positions
- 
- 
 // No heurstics
 let gridToNode (n: Node<Grid,Action []>) a s =
   let cost = n.cost + 1
@@ -379,3 +349,46 @@ let gridToNode' (n: Node<Grid, Action [] * Set<Pos>>) a s =
 
 let getChild (n: Node<Grid,Action []>) (appliedAction: Action []) (newState: Grid) : Node<Grid,Action []> = 
   gridToNode n appliedAction newState
+
+
+let searchAllPositions grid startPos =
+  let fs,fq: Set<Pos> * Queue<Pos * int> = set [startPos], new Queue<Pos * int>()
+  fq.Enqueue((startPos,0))
+  let e: (Pos * int) list = [] 
+  let seen: Set<Pos> = set [startPos]
+  let rec loop (fs: Set<Pos>) (e: (Pos * int) list) (seen: Set<Pos>) = 
+    if fs.IsEmpty then e else          
+      let p,c = fq.Dequeue()
+      let fs' = fs.Remove(p)
+      let e' = (p,c) :: e
+      let seen' = seen.Add p
+      let fs'' =
+        validMovePointer {grid with searchPoint = Some p} 
+        |> List.fold (fun (fs'': Set<Pos>) (a,s) ->
+          let newP = s.searchPoint.Value
+          if not (seen'.Contains newP || fs''.Contains newP) 
+          then 
+            fq.Enqueue((newP,c+1))
+            Set.add newP fs''
+          else fs'') fs'
+      loop fs'' e' seen'
+  loop fs e seen
+
+let getPositions (grid: Grid) =
+  grid.dynamicGrid
+  |> Map.toArray
+  |> Array.filter (fun (_, o) ->
+    match o with
+    | Agent _ -> true
+    | _ -> false)
+  |> Array.Parallel.collect (fun (p,_) ->
+    searchAllPositions grid p
+    |> List.toArray
+    |> Array.Parallel.map fst)
+  |> Array.distinct
+  |> Array.Parallel.collect (fun p ->
+    searchAllPositions grid p
+    |> List.toArray
+    |> Array.Parallel.collect (fun (p',c) -> [|((p,p'),c);((p',p),c)|])
+  )
+  |> Map.ofArray

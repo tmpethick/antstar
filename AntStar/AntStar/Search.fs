@@ -175,20 +175,12 @@ let graphSearch<'a> (p: ISokobanProblem<'a>) =
     let f: SearchQueue<Grid,'a> = (SearchQueue<Grid,'a>.empty).Insert initialEl
     let e: Set<Grid> = Set.empty
     let rec loop (e: Set<Grid>) (f: SearchQueue<Grid,'a>) = 
-        // let frontierStates = Map.map (fun s n -> n.state) f.m
-        // printfn "%O" frontierStates
-        // eprintfn "Size of explored: %O\n" e.Count
-        // eprintfn "Size of frontier: %O\n" f.Length
         if f.IsEmpty
         then None
         else 
             let n, f' = f.Pop
-            // n.state.ToColorRep() |> cprintLines
-            // eprintfn "at %O" n.state.searchPoint.Value
             if p.GoalTest n.state
             then 
-                // eprintfn "Size of explored: %O\n" e.Count
-                // eprintfn "Size of frontier: %O\n" f'.Length
                 Some (retrieveSolution n)
             else 
                 let e' = e.Add n.state
@@ -205,7 +197,6 @@ let graphSearch<'a> (p: ISokobanProblem<'a>) =
                 loop e' f''
     loop e f
 
-// TODO: multiple goals can use same box. Might lead ordering with non-trivial solution.
 let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxTypeToId: Map<ObjType,Set<Guid>>) (agentColorToId: Map<Color,Set<AgentIdx>>) (orderedGoals : List<Pos * Goal>) (unsolvedGoals : Set<Pos * Goal>) = 
     // set other unsolvedGoals to walls
     // search for box of Goal type
@@ -213,15 +204,7 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
     let isSolvableGoal ((goalPos, gt): Pos * Goal) = 
         let grid' = 
           grid
-        //   |> Grid.filterDynamicObjects (fun _ d -> (((not << isBox) d) || (isBoxOfType gt d)))
           |> flip (Set.fold (fun g (pos, _) -> g.AddWall pos)) (unsolvedGoals.Remove (goalPos, gt))
-        // eprintfn "%O" (goalPos, gt)
-        // eprintfn "%O" unsolvedGoals
-        // eprintfn "%O" orderedGoals
-        // grid'.ToColorRep() |> cprintLines
-        // grid.ToColorRep() |> cprintLines
-
-        // printfn "%O" grid'
         match graphSearch (BoxPointerProblem (grid', goalPos, gt, false, prevH, boxTypeToId.[gt] |> Set.map (fun id -> grid'.boxPos.[id]))) with
         | Some n -> 
           if isMA |> not then true else
@@ -237,19 +220,18 @@ let rec orderGoals' (grid: Grid) (prevH: Map<Pos * Pos, int>) (isMA: bool) (boxT
     
     if unsolvedGoals.IsEmpty
         then orderedGoals
-        else match Set.toList unsolvedGoals |> List.tryFind isSolvableGoal with
-             | Some g -> 
-                // eprintfn "goal solved: %O" g
-                orderGoals' grid prevH isMA boxTypeToId agentColorToId (g :: orderedGoals) (unsolvedGoals.Remove g)
-             | None -> 
-                // failwith "no order"
-                (Set.toList unsolvedGoals) @ orderedGoals
+        else 
+          match Set.toList unsolvedGoals |> List.tryFind isSolvableGoal with
+          | Some g -> 
+            orderGoals' grid prevH isMA boxTypeToId agentColorToId (g :: orderedGoals) (unsolvedGoals.Remove g)
+          | None -> 
+            (Set.toList unsolvedGoals) @ orderedGoals
 
 let orderGoals grid prevH isMA boxTypeToId agentColorToId unsolvedGoals = 
   orderGoals' grid prevH isMA boxTypeToId agentColorToId [] unsolvedGoals
 
 type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) = 
-    inherit ISokobanProblem<Action [] * LockedPos>()
+    inherit ISokobanProblem<ActionMeta>()
     let numAgents = grid.agentPos.Count
     let agentInt = agentIdx |> System.Char.GetNumericValue |> int
     
@@ -261,7 +243,7 @@ type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) =
             let action' = Array.create numAgents NOP
             Array.set action' agentInt a
             ((action', d), g))
-    override p.GoalTest s = goalTest agentIdx s
+    override p.GoalTest s = goalTest s
     override p.ChildNode n a s = 
       let child = gridToNode' n a s
       {child with value = child.cost}
@@ -269,7 +251,7 @@ type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) =
 
 // AStarSokobanProblem(boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest)
 type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest, heuristicTransformer) =
-    inherit ISokobanProblem<Action [] * LockedPos>()
+    inherit ISokobanProblem<ActionMeta>()
 
     let numAgents = grid.agentPos.Count
     let agentInt = agentIdx |> System.Char.GetNumericValue |> int
@@ -285,7 +267,6 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
                             
     override p.ChildNode n a s = 
         let boxPos = Map.find boxGuid s.boxPos
-
         let agentPos = Map.find agentIdx s.agentPos
         let agentH = Map.find (boxPos,agentPos) prevHValues
         let node = gridToNode' n a s
@@ -299,11 +280,7 @@ type AStarSokobanProblem (boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHVa
         let goalTest agentIdx s = 
             let boxPos = Map.find boxGuid s.boxPos
             let agentPos = Map.find agentIdx s.agentPos
-            let onGoal = false
-                //match Map.find agentPos s.staticGrid with
-                //| Goal _ -> true
-                //| _ -> false
-            match (goalPos = boxPos) && not onGoal with
+            match (goalPos = boxPos) with
             | false -> false
             | true ->
               match Option.isSome nextGoalPos with
