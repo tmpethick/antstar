@@ -260,6 +260,7 @@ and clearPath (prevH: Map<(Pos * Pos),int>) (agentColorToId: Map<Color,Set<Agent
         | Some obstacle -> 
             let obsActionSolution, gridAcc' = solveObstacle prevH agentColorToId (solutionSet) obstacle gridAcc
             // eprintfn "After removing obstacle"
+            // DEBUG
             // gridAcc'.ToColorRep() |> cprintLines
             clearPath' gridAcc' (solutionAcc @ obsActionSolution)
         | None -> 
