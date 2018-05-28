@@ -50,6 +50,7 @@ type Errors =
   | NotAssociatedObject
   // Grid errors
   | BoxPositionIsNotBox
+  | AgentPositionIsNotAgent
   | InvalidGridPosition
   | OutOfBounds
   | SearchPointerIsNone
@@ -103,10 +104,8 @@ let (!|) m arg =
 
 let unWrap = function
     | Success s -> s
-    | Error _ -> failwith "nooooo"
+    | Error _ -> failwith "Tried to unwrap an error state"
 let flip f a b = f b a
-
-
 
 // String concatenation helpers
 let flatten xs = xs |> List.fold (+) ""
@@ -115,7 +114,6 @@ let toLine xs = (flatten xs) + "\n"
 // List helpers
 let cartesian xs ys = List.collect (fun x -> List.map (fun y -> x, y) ys) xs
 let addIdx (arr : 'a list) = List.mapi (fun i line -> (i, line)) arr
-
 
 type Cost = int
 
@@ -136,10 +134,9 @@ type Node<'s,'a> = {
        match yobj with 
        | :? Node<'s,'a> as y -> x.value = y.value
        | _ -> false
-    override x.GetHashCode() = x.value // TODO: 
+    override x.GetHashCode() = x.value
 
 type ColoredString = {text: String; background: ConsoleColor; color: ConsoleColor;}
-
 type ColoredLines = ColoredString [] []
 
 let toConsoleColor = function 
@@ -151,24 +148,3 @@ let toConsoleColor = function
   | Orange  -> ConsoleColor.DarkMagenta
   | Pink    -> ConsoleColor.DarkYellow
   | Yellow  -> ConsoleColor.Yellow
-
-// From https://blogs.msdn.microsoft.com/chrsmith/2008/10/01/f-zen-colored-printf/
-let cprintf c bg fmt = 
-    Printf.kprintf
-        (fun s ->
-            let oldBg = System.Console.BackgroundColor
-            let oldColor = System.Console.ForegroundColor
-            try
-              System.Console.ForegroundColor <- c;
-              System.Console.BackgroundColor <- bg;
-              System.Console.Error.Write s
-            finally
-              System.Console.ForegroundColor <- oldColor
-              System.Console.BackgroundColor <- oldBg)
-        fmt
-
-let cprintLines (coloredLines: ColoredLines): unit =
-  coloredLines
-  |> Array.iter (fun lines -> 
-      lines |> Array.iter (fun line -> cprintf line.color line.background "%O" line.text)
-      eprintfn "")
