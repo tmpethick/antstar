@@ -236,6 +236,7 @@ and createClearPathFromBox prevH (agentColorToId: Map<Color,Set<AgentIdx>>) (box
     let solutionPath = boxPath @ goalPath |> List.tail // Drops Agent pos
     let solutionSet = Set.ofList solutionPath
     
+    // DEBUG
     // formatPath grid solutionPath |> cprintLines
 
     box, agent, clearPath prevH agentColorToId agent (Some box) solutionPath grid
@@ -247,6 +248,7 @@ and createClearPathForAgent prevH agentColorToId agent freeSpots grid =
         | Some s -> List.map (fun n -> n.state.searchPoint.Value) s
         | None -> failwith "could not clear agent"
         
+    // DEBUG
     // formatPath grid agentPath |> cprintLines
 
     clearPath prevH agentColorToId agent None agentPath grid
@@ -284,6 +286,7 @@ let solveGoal (goalPos, goal) (goals: (Pos * Goal) list) prevH boxTypeToId agent
         | Some [] ->
           actions,grid'
         | Some solution ->
+            // DEBUG
             // solution.Head.state.ToColorRep() |> cprintLines
             let actions', grid = getActionsAndResultingState' solution
             (actions @ actions'), grid
@@ -434,6 +437,7 @@ let testGoalOrdering (grid: Grid) =
     let isMA = grid.agentPos.Count > 1
 
     let goals = orderGoals grid prevH isMA boxTypeToId agentColorToId (grid.GetGoals ())
+    // DEBUG
     // eprintfn "Goal order: %s" ((List.map (snd >> string) goals) |> String.concat ",") 
     // eprintfn "Solving goals"
     let actions, grid = solveGoals prevH boxTypeToId agentColorToId grid goals

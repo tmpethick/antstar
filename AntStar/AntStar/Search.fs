@@ -264,7 +264,12 @@ type BFSSokobanProblem(agentIdx: AgentIdx, grid: Grid, goalTest) =
     override p.GoalTest s = goalTest agentIdx s
     override p.ChildNode n a s = 
       let child = gridToNode' n a s
-      {child with value = child.cost}
+      let additionalCost =
+        match (fst a).[agentInt] with
+        | Push _ | Pull _ -> 1
+        | _ -> 0
+      let cost = child.cost + additionalCost
+      {child with value = cost; cost = cost}
     override p.initialAction () = Array.create numAgents NOP, Set.empty
 
 // AStarSokobanProblem(boxGuid: Guid, agentIdx: AgentIdx, grid: Grid, prevHValues: Map<Pos*Pos, int>, goalTest)
