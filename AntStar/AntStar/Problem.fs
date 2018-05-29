@@ -76,7 +76,7 @@ let rec solveObstacle prevH agentColorToId (reservedPath: Set<Pos>) (pos: Pos) (
     | None -> failwith "come on"
   | Agent a ->
     let goalTest s = 
-      let agentPos = pos
+      let agentPos = Map.find (fst a) s.agentPos
       let onGoal =
         match Map.find agentPos s.staticGrid with
         | Goal _ -> true
