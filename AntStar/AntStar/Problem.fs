@@ -136,6 +136,66 @@ let solveGoal (goalPos, goal) prevH boxTypeToId agentColorToId grid : ActionList
     (actions @ actions'), grid
   | None -> failwith "come on"
 
+/// Expects `arr` to be sorted in decending order (decreasing size of set).
+let binSearch<'a when 'a: comparison> (target: Set<'a>) (arr: (Domain.Action [] * Set<'a>) []) = 
+  let rec binSearch' currentBest lo hi =
+    if lo <= hi then
+      let mid = lo + ((hi - lo) >>> 1)
+      let intersection = Set.intersect target (snd arr.[mid])
+      if Set.isEmpty intersection
+      then binSearch' (Some mid) lo (mid - 1) // left is bigger
+      else binSearch' currentBest (mid + 1) hi  // right is smaller
+    else currentBest
+  binSearch' None 0 (Array.length arr - 1)
+
+// let mergeActions startIdx (actions: (Domain.Action [] * HistoryLockedPos) []) (additionalActions: (Domain.Action [] * HistoryLockedPos) []) =
+//     let mergeAction (a1: Domain.Action []) (a2: Domain.Action []) = 
+//         Array.zip a1 a2
+//         |> Array.map (fun (a1,a2) -> 
+//             match a1 with
+//             | Domain.NOP -> a2
+//             | v -> v)
+
+//     /// Assumes a is bigger than b
+//     let merge (a: (Domain.Action [] * HistoryLockedPos) []) (b: (Domain.Action [] * HistoryLockedPos) []) = 
+//         let left, right = Array.splitAt b.Length a
+//         let left = left
+//                     |> Array.zip b
+//                     |> Array.map (fun ((a1,l1),(a2,l2)) -> 
+//                         (mergeAction a1 a2), Set.union l1 l2)
+//         Array.concat [left; right]
+
+//     let left, middle = 
+//         match startIdx with
+//         | Some idx -> Array.splitAt idx actions
+//         | None     -> actions, [||]
+    
+//     let middle', right = 
+//         if additionalActions.Length > middle.Length then 
+//             Array.splitAt middle.Length additionalActions
+//         else 
+//             additionalActions, [||]
+            
+//     let mergedMiddle = merge middle middle'
+//     let tail = Array.concat [mergedMiddle; right]
+
+//     let left = 
+//         if Array.isEmpty tail |> not then
+//             let _, locked = tail.[0]
+//             left |> Array.map (fun (a, l) -> a, Set.union l locked)
+//         else left
+
+//     Array.concat [left; tail]
+
+// let accLockedFields (prefix: (Domain.Action [] * LockedPos) list): (Domain.Action [] * HistoryLockedPos) list = 
+//   prefix
+//   |> List.map snd
+//   |> List.rev
+//   |> List.scan Set.union Set.empty
+//   |> List.tail
+//   |> List.rev
+//   |> List.zip (prefix |> List.map fst)
+
 let rec solveGoals prevH boxTypeToId agentColorToId grid (goalOrder: (Pos * Goal) list) =
   let rec solveGoals' actions grid goals goalOrder = 
     if Set.isEmpty goals
@@ -144,9 +204,15 @@ let rec solveGoals prevH boxTypeToId agentColorToId grid (goalOrder: (Pos * Goal
       let goal = goalOrder |> List.find (fun g -> Set.contains g goals)
       let actions', grid = solveGoal goal prevH boxTypeToId agentColorToId grid
       let goals = grid.GetUnsolvedGoals ()
+      
       let actions' = actions' |> List.toArray
-
       solveGoals' (Array.concat [actions; actions']) grid goals goalOrder
+
+      // let accLocked = actions' |> accLockedFields |> List.toArray
+      // let startIdx = binSearch (snd accLocked.[0]) actions
+      // let actionsAcc = mergeActions startIdx actions accLocked
+      // solveGoals' actionsAcc grid goals goalOrder
+
     
   let goals: Set<Pos * Goal> = Set.ofList goalOrder
   solveGoals' [||] grid goals goalOrder

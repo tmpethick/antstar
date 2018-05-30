@@ -1,0 +1,558 @@
+Timeout of 180 seconds. Action limit is 20000
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAora.lvl (1 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 22.071 seconds
+  - Actions taken: 335
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAKJFWAOL.lvl (2 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 3.039 seconds
+  - Actions taken: 54
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MADaVinci.lvl (3 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 7.664 seconds
+  - Actions taken: 160
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAAlphaOne.lvl (4 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAJMAI.lvl (5 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 1.696 seconds
+  - Actions taken: 111
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAAiAiCap.lvl (6 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 54.962 seconds
+  - Actions taken: 198
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAZEROagent.lvl (7 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SANotHard.lvl (8 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 4.603 seconds
+  - Actions taken: 156
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAJMAI.lvl (9 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 0.751 seconds
+  - Actions taken: 31
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAAlphaOne.lvl (10 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 2.869 seconds
+  - Actions taken: 95
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAMagicians.lvl (11 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 3.463 seconds
+  - Actions taken: 104
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MANikrima.lvl (12 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 0.808 seconds
+  - Actions taken: 51
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAPushPush.lvl (13 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MABahaMAS.lvl (14 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAAntsStar.lvl (15 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 54.707 seconds
+  - Actions taken: 238
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MANavy.lvl (16 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAEasyPeasy.lvl (17 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SALobot.lvl (18 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 2.083 seconds
+  - Actions taken: 87
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MALobot.lvl (19 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 8.565 seconds
+  - Actions taken: 219
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAByteMe.lvl (20 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 7.742 seconds
+  - Actions taken: 205
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAAiMasTers.lvl (21 of 54)
+ ************
+[Client said]
+[Client said] Unhandled Exception: System.Exception: could not clear agent
+[Client said]    at Problem.createClearPathForAgent(FSharpMap`2 prevH, FSharpMap`2 agentColorToId, Char agent_0, Color agent_1, FSharpSet`1 freeSpots, Grid grid) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Problem.fs:line 107
+[Client said]    at Problem.solveObstacle(FSharpMap`2 prevH, FSharpMap`2 agentColorToId, FSharpSet`1 reservedPath, Int32 pos_0, Int32 pos_1, Grid state) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Problem.fs:line 86
+[Client said]    at Problem.clearPath'@112(FSharpMap`2 prevH, FSharpMap`2 agentColorToId, FSharpOption`1 box, FSharpList`1 solutionPath, FSharpSet`1 solutionSet, Char agent_0, Grid gridAcc, FSharpList`1 solutionAcc) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Problem.fs:line 118
+[Client said]    at Problem.clearPath(FSharpMap`2 prevH, FSharpMap`2 agentColorToId, Char agent_0, Color agent_1, FSharpOption`1 box, FSharpList`1 solutionPath, Grid grid) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Problem.fs:line 111
+[Client said]    at Problem.createClearPathFromBox(FSharpMap`2 prevH, FSharpMap`2 agentColorToId, Tuple`3 box, Tuple`2 boxPos, FSharpList`1 goalPath, Grid grid) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Problem.fs:line 98
+[Client said]    at Problem.solveGoal(Tuple`2 goalPos, Char goal, FSharpMap`2 prevH, FSharpMap`2 boxTypeToId, FSharpMap`2 agentColorToId, Grid grid) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Problem.fs:line 127
+[Client said]    at Problem.solveGoals'@200(FSharpMap`2 prevH, FSharpMap`2 boxTypeToId, FSharpMap`2 agentColorToId, Tuple`2[] actions, Grid grid, FSharpSet`1 goals, FSharpList`1 goalOrder) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Problem.fs:line 204
+[Client said]    at Problem.solveGoals(FSharpMap`2 prevH, FSharpMap`2 boxTypeToId, FSharpMap`2 agentColorToId, Grid grid, FSharpList`1 goalOrder) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Problem.fs:line 216
+[Client said]    at Program.solveLevel(Grid grid) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Program.fs:line 146
+[Client said]    at Program.main(String[] args) in /Users/tmpethick/Google Drive/dtu/8-semester/02285/MAS/AntStar/AntStar/Program.fs:line 171
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SANavy.lvl (22 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAByteMe.lvl (23 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAGreenDots.lvl (24 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 17.737 seconds
+  - Actions taken: 287
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAbAnAnA.lvl (25 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 20.355 seconds
+  - Actions taken: 131
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAAntsStar.lvl (26 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 2.666 seconds
+  - Actions taken: 147
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAora.lvl (27 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 4.392 seconds
+  - Actions taken: 158
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAPushPush.lvl (28 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 34.733 seconds
+  - Actions taken: 251
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAbAnAnA.lvl (29 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 133.964 seconds
+  - Actions taken: 658
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAKaldi.lvl (30 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 156.604 seconds
+  - Actions taken: 254
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SANikrima.lvl (31 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 35.286 seconds
+  - Actions taken: 239
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAbongu.lvl (32 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 1.447 seconds
+  - Actions taken: 85
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAKarlMarx.lvl (33 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MANotHard.lvl (34 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 65.066 seconds
+  - Actions taken: 183
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAbongu.lvl (35 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 2.471 seconds
+  - Actions taken: 80
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAKarlMarx.lvl (36 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAZEROagent.lvl (37 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 110.9 seconds
+  - Actions taken: 480
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAAiAiCap.lvl (38 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 15.436 seconds
+  - Actions taken: 134
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAMagicians.lvl (39 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 34.419 seconds
+  - Actions taken: 477
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAKaldi.lvl (40 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAKJFWAOL.lvl (41 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 2.521 seconds
+  - Actions taken: 26
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SADaVinci.lvl (42 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SABeTrayEd.lvl (43 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 14.434 seconds
+  - Actions taken: 238
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SACybot.lvl (44 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 15.166 seconds
+  - Actions taken: 174
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAAIFather.lvl (45 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAEasyPeasy.lvl (46 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 27.969 seconds
+  - Actions taken: 162
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MACybot.lvl (47 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 4.011 seconds
+  - Actions taken: 139
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAAIFather.lvl (48 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 0.742 seconds
+  - Actions taken: 57
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAdashen.lvl (49 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 42.787 seconds
+  - Actions taken: 475
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAdashen.lvl (50 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SAAiMasTers.lvl (51 of 54)
+ ************
+[CompetitionRunner Exception] Unable to read next action from client (Level is likely not solved)
+java.lang.RuntimeException: Unable to read next action from client
+	at server.communication.ShellCommunicator.nextActionString(Unknown Source)
+	at server.communication.Communicator.getJointAction(Unknown Source)
+	at server.level.Environment.update(Unknown Source)
+	at server.CompetitionRunner.runLevel(Unknown Source)
+	at server.CompetitionRunner.main(Unknown Source)
+  - Run of level ended
+  - Solution not found
+  - Time spent: 0.0 seconds
+  - Actions taken: 0
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/SABahaMAS.lvl (52 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 26.046 seconds
+  - Actions taken: 124
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MABeTrayEd.lvl (53 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 157.508 seconds
+  - Actions taken: 244
+
+ ************
+ * Processing AntStar/AntStar/levels/competition_levels/MAGreenDots.lvl (54 of 54)
+ ************
+  - Run of level ended
+  - Solution found
+  - Time spent: 8.576 seconds
+  - Actions taken: 240
+
+Competition run finished. Please follow provided instructions for uploading results.

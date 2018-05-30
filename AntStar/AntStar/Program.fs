@@ -55,27 +55,6 @@ let getUnsolvedGoals (expectedSolvedGoals: Set<Pos * Goal>) (grid: Grid) =
     && not (grid.dynamicGrid.[pos] |> isBoxOfType goal)
   )
 
-let accLockedFields (prefix: (Action [] * LockedPos) list): (Action [] * HistoryLockedPos) list = 
-  prefix
-  |> List.map snd
-  |> List.rev
-  |> List.scan Set.union Set.empty
-  |> List.tail
-  |> List.rev
-  |> List.zip (prefix |> List.map fst)
-
-/// Expects `arr` to be sorted in decending order (decreasing size of set).
-let binSearch<'a when 'a: comparison> (target: Set<'a>) (arr: (Action [] * Set<'a>) []) = 
-  let rec binSearch' currentBest lo hi =
-    if lo <= hi then
-      let mid = lo + ((hi - lo) >>> 1)
-      let intersection = Set.intersect target (snd arr.[mid])
-      if Set.isEmpty intersection
-      then binSearch' (Some mid) lo (mid - 1) // left is bigger
-      else binSearch' currentBest (mid + 1) hi  // right is smaller
-    else currentBest
-  binSearch' None 0 (Array.length arr - 1)
-
 let mergeAction startIdx (actions: (Action [] * HistoryLockedPos) []) (action: ActionMeta) =
   let mergeActions (a1: Action []) (a2: Action []) = 
     Array.zip a1 a2
@@ -170,7 +149,7 @@ let solveLevel (grid: Grid) =
   let actions, _ = solveGoals prevH boxTypeToId agentColorToId grid goals
   
   actions 
-  |> makeConcurrent 
+  // |> makeConcurrent 
   |> Array.Parallel.map fst 
   |> Array.Parallel.map convertActionArray
   |> Array.iter (printfn "%s")
