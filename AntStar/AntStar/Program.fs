@@ -149,7 +149,7 @@ let solveLevel (grid: Grid) =
   let actions, _ = solveGoals prevH boxTypeToId agentColorToId grid goals
   
   actions 
-  // |> makeConcurrent 
+  |> makeConcurrent 
   |> Array.Parallel.map fst 
   |> Array.Parallel.map convertActionArray
   |> Array.iter (printfn "%s")
